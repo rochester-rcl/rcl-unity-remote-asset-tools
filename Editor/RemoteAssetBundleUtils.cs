@@ -1,5 +1,5 @@
-﻿
-namespace RemoteAssetBundleTools {
+﻿namespace RemoteAssetBundleTools {
+    
     using System.Collections;
     using System.Collections.Generic;
     using System.IO;
@@ -24,6 +24,31 @@ namespace RemoteAssetBundleTools {
         ///<summary> Checks whether or not the AssetBundle exists on disk</summary>
         public bool Exists() {
             return File.Exists(Path);
+        }
+
+        ///<summary>Loads the given AssetBundle located at <see cref="AssetBundleInfo.Path" />
+        ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
+        ///<returns>The loaded AssetBundle</returns>
+        ///</summary>
+        public AssetBundle Load() {
+            if (Exists()) {
+                return AssetBundle.LoadFromFile(Path);
+            }
+            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", Name, Path));
+        }
+
+        ///<summary>Asynchronously Loads the given AssetBundle located at <see cref="AssetBundleInfo.Path" />
+        ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
+        ///<returns>The loaded AssetBundle</returns>
+        ///</summary>
+        public async Task<AssetBundle> LoadAsync() {
+            if (Exists()) {
+                string path = Path;
+                var bundleReq = Task.Run(() => AssetBundle.LoadFromFileAsync(path));
+                var result = await bundleReq;
+                return result.assetBundle;
+            }
+            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", Name, Path));
         }
     }
 
@@ -83,7 +108,6 @@ namespace RemoteAssetBundleTools {
             HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message);
             return response.StatusCode;
         }
-
 
     }
 }
