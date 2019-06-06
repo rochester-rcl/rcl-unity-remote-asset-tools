@@ -4,56 +4,12 @@
     using System.Collections.Generic;
     using System.IO;
     using UnityEngine;
+    using UnityEngine.Networking;
     using System.Net.Http;
     using System.Net;
     using System.Threading.Tasks;
 
-    /// <summary>
-    /// Struct to hold basic AssetBundle Info
-    /// </summary>
-    public struct AssetBundleInfo {
-        ///<summary> The name of the AssetBundle </summary>
-        public string Name { get; private set;} 
-        ///<summary> The absolute path to the AssetBundle on disk </summary>
-        public string Path { get; private set; }
-
-        public AssetBundleInfo(string name, string path) {
-            Name = name;
-            Path = path;
-        }
-        ///<summary> Checks whether or not the AssetBundle exists on disk</summary>
-        public bool Exists() {
-            return File.Exists(Path);
-        }
-
-        ///<summary>Loads the given AssetBundle located at <see cref="AssetBundleInfo.Path" />
-        ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
-        ///<returns>The loaded AssetBundle</returns>
-        ///</summary>
-        public AssetBundle Load() {
-            if (Exists()) {
-                return AssetBundle.LoadFromFile(Path);
-            }
-            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", Name, Path));
-        }
-
-        ///<summary>Asynchronously Loads the given AssetBundle located at <see cref="AssetBundleInfo.Path" />
-        ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
-        ///<returns>The loaded AssetBundle</returns>
-        ///</summary>
-        public async Task<AssetBundle> LoadAsync() {
-            if (Exists()) {
-                string path = Path;
-                var bundleReq = Task.Run(() => AssetBundle.LoadFromFileAsync(path));
-                var result = await bundleReq;
-                return result.assetBundle;
-            }
-            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", Name, Path));
-        }
-    }
-
     public static class RemoteAssetBundleUtils {
-        public delegate void HandleResponse(bool status);
 
         ///<summary>Searches a directory for a given AssetBundle
         ///<param name="name">The name of the AssetBundle</param>
@@ -88,12 +44,34 @@
                     MultipartFormDataContent formData = new MultipartFormDataContent();
                     FileInfo f = new FileInfo(info.Path);
                     StreamContent fs = new StreamContent(f.OpenRead());
-                    formData.Add(fs, info.Name, f.Name);
+                    formData.Add(fs, "bundle", f.Name);
                     formData.Add(new StringContent(message), "message");
                     return client.PostAsync(url, formData);
                 } else {
                     throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.Name, info.Path));
                 }      
+            }
+        }
+
+        public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url) {
+            using (HttpClient client = new HttpClient()) {
+                return client.GetAsync(url);
+            }
+        }
+
+        public static async Task<RemoteAssetBundleManifest> GetAssetBundleManifest(string url) {
+            HttpResponseMessage response = await GetAssetBundleManifestAsync(url);
+            string content = await response.Content.ReadAsStringAsync();
+            return RemoteAssetBundleManifest.Deserialize(content);
+        }
+
+        // TODO Add version hash on server side
+        public static async Task<AssetBundle> DownloadAssetBundleAsync(string url, string name) {
+            string endpoint = string.Format("{0}/{1}", url, name);
+            using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint)) {
+                var task = Task.Run(() => req.SendWebRequest());
+                var result = await task;
+                return DownloadHandlerAssetBundle.GetContent(req);
             }
         }
 
