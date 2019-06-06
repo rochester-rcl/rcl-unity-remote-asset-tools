@@ -55,7 +55,7 @@ namespace RemoteAssetBundleToolsTests {
             Debug.Log("Passed");
         }
 
-        [UnityTest]
+        [UnityTest, Order(2)]
         public static IEnumerator VerifyGetAssetBundleManifest() {
             Debug.Log("Testing RemoteAssetBundleUtils.GetAssetBundleManifest");
             Task<RemoteAssetBundleManifest> task = RemoteAssetBundleUtils.GetAssetBundleManifest(TestConstants.TEST_SERVER_URL);
@@ -63,10 +63,17 @@ namespace RemoteAssetBundleToolsTests {
                 yield return null;
             }
             RemoteAssetBundleManifest content = task.Result;
-            Debug.Log(content.Bundles[0].Info.Name);            
+            // Should at the very least be an empty array
+            Assert.AreNotEqual(content.Bundles, null);
+            Debug.Log(content.Bundles.Length);
+            foreach(var bundle in content.Bundles) {
+                Debug.Log(bundle.VersionHash);
+                Debug.Log(bundle.Info.Path);
+            }
+            Debug.Log("Passed");           
         }
 
-        [UnityTest]
+        [UnityTest, Order(1)]
         public static IEnumerator VerifyUploadAssetBundle() {
             Debug.Log("Testing RemoteAssetBundleUtils.UploadAssetBundle");
             AssetBundleInfo info = new AssetBundleInfo(TestConstants.TEST_BUNDLE_NAME, TestConstants.TEST_BUNDLE_PATH);
