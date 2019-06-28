@@ -60,9 +60,12 @@ namespace RemoteAssetBundleTools {
     ///</summary>
     [System.Serializable]
     public struct RemoteAssetBundle {
-        public Hash128 VersionHash;
+        public string VersionHash;
         public AssetBundleInfo Info;
 
+        public Hash128 toHash128() {
+            return Hash128.Parse(VersionHash);
+        }
         /* public static RemoteAssetBundle Deserialize(string val) {
 
         } */

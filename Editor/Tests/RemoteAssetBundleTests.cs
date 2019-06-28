@@ -66,9 +66,10 @@ namespace RemoteAssetBundleToolsTests {
             // Should at the very least be an empty array
             Assert.AreNotEqual(content.Bundles, null);
             Debug.Log(content.Bundles.Length);
-            foreach(var bundle in content.Bundles) {
-                Debug.Log(bundle.VersionHash);
-                Debug.Log(bundle.Info.Path);
+            foreach(var _bundle in content.Bundles) {
+                Debug.Log(_bundle.VersionHash);
+                Debug.Log(_bundle.Info.Path);
+                Assert.IsTrue(_bundle.toHash128().isValid);
             }
             Debug.Log("Passed");           
         }
