@@ -78,13 +78,19 @@ namespace RemoteAssetBundleToolsTests {
         public static IEnumerator VerifyUploadAssetBundle() {
             Debug.Log("Testing RemoteAssetBundleUtils.UploadAssetBundle");
             AssetBundleInfo info = new AssetBundleInfo(TestConstants.TEST_BUNDLE_NAME, TestConstants.TEST_BUNDLE_PATH);
-            Task<HttpStatusCode> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, "This is a test");
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, "This is a test");
             while (!task.IsCompleted) {
                 yield return null;
             }
-            HttpStatusCode status = task.Result;
-            // TODO status code should be 201 but for now we'll check for 200
-            Assert.AreEqual(status, HttpStatusCode.OK);
+            RemoteAssetBundle bundle = task.Result;
+            Assert.AreEqual(bundle.toHash128().isValid, true);
+            // Now try to delete it 
+            Task<HttpStatusCode> t = RemoteAssetBundleUtils.DeleteAssetBundle(TestConstants.TEST_SERVER_URL, bundle);
+            while (!t.IsCompleted) {
+                yield return null;
+            }
+            HttpStatusCode status = t.Result;
+            Debug.Log(status);
             Debug.Log("Passed");
         }
     }
@@ -104,7 +110,7 @@ namespace RemoteAssetBundleToolsTests {
             Assert.AreNotEqual(cube, null);
             Debug.Log("Passed");
             // Test async loading 
-            // TODO this currently causes the application to hang.
+            // TODO this currently causes the application to hang - needs to be done on the main thread.
             /* bundle = Task.Run(() => info.LoadAsync()).GetAwaiter().GetResult();
             cube = bundle.LoadAsset<GameObject>(TestConstants.SAMPLE_PREFAB);
             Assert.AreNotEqual(cube, null); */

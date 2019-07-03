@@ -53,12 +53,33 @@
             }
         }
 
+        ///<summary>Deletes an AssetBundle from a RESTful service
+        ///<param name="url">The absolute URL to the POST endpoint</param>
+        ///<param name="bundle">The RemoteAssetBundle struct</param>
+        ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
+        ///</summary>
+        public static Task<HttpResponseMessage> DeleteAssetBundleAsync(string url, RemoteAssetBundle bundle) {
+            using (HttpClient client = new HttpClient()) {
+                MultipartFormDataContent formData = new MultipartFormDataContent();
+                string formattedUrl = string.Format("{0}?name={1}&versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
+                return client.DeleteAsync(formattedUrl);
+            }
+        }
+
+        ///<summary>Retrieves a list of RemoteAssetBundles from a RESTful service
+        ///<param name="url">The absolute URL to the GET endpoint</param>
+        ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
+        ///</summary>
         public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url) {
             using (HttpClient client = new HttpClient()) {
                 return client.GetAsync(url);
             }
         }
 
+        ///<summary>Convenience method that wraps <see cref="GetAssetBundleManifestAsync"/>
+        ///<param name="url">The absolute URL to the GET endpoint</param>
+        ///<returns>Returns a Task which returns deserialized AssetBundleManifest struct</returns>
+        ///</summary>
         public static async Task<RemoteAssetBundleManifest> GetAssetBundleManifest(string url) {
             HttpResponseMessage response = await GetAssetBundleManifestAsync(url);
             string content = await response.Content.ReadAsStringAsync();
@@ -80,10 +101,21 @@
         ///<param name="info">The AssetBundleInfo struct</param>
         ///<param name="message">A message to be used on the server side</param>
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
+        ///<returns>Returns a Task which returns a deserialized RemoteAssetBundle</returns>
+        ///</summary>
+        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string message) {
+            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message);
+            string content = await response.Content.ReadAsStringAsync();
+            return RemoteAssetBundle.Deserialize(content);
+        }
+
+        ///<summary>Simplified version of <see cref="DeleteAssetBundleAsync" />
+        ///<param name="url">The absolute URL to the POST endpoint</param>
+        ///<param name="bundle">The RemoteAssetBundle struct</param>
         ///<returns>Returns the status code of the <see cref="HttpResponseMessage" /></returns>
         ///</summary>
-        public static async Task<HttpStatusCode> UploadAssetBundle(string url, AssetBundleInfo info, string message) {
-            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message);
+        public static async Task<HttpStatusCode> DeleteAssetBundle(string url, RemoteAssetBundle bundle) {
+            HttpResponseMessage response = await DeleteAssetBundleAsync(url, bundle);
             return response.StatusCode;
         }
 

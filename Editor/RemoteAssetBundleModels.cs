@@ -66,9 +66,10 @@ namespace RemoteAssetBundleTools {
         public Hash128 toHash128() {
             return Hash128.Parse(VersionHash);
         }
-        /* public static RemoteAssetBundle Deserialize(string val) {
-
-        } */
+        public static RemoteAssetBundle Deserialize(string val) {
+            RemoteAssetBundle obj = JsonUtility.FromJson<RemoteAssetBundle>(val);
+            return obj;
+        }
     }
 
     ///<summary>Manifest of all RemoteAssetBundles living on a server
