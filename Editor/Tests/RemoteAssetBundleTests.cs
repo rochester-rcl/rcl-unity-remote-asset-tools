@@ -22,10 +22,9 @@ namespace RemoteAssetBundleToolsTests {
 
     }
 
-    public abstract class AssetBundleTests {
+    public abstract class AssetBundleTests: IPrebuildSetup {
 
-        [SetUp]
-        public static void Setup() {
+        public void Setup() {
             // Build an AssetBundle
             AssetBundleBuild[] bundles = new AssetBundleBuild[1];
             bundles[0] = new AssetBundleBuild() {
@@ -38,8 +37,7 @@ namespace RemoteAssetBundleToolsTests {
             BuildPipeline.BuildAssetBundles(TestConstants.TEST_BUNDLE_DIR, bundles, BuildAssetBundleOptions.None, EditorUserBuildSettings.activeBuildTarget);
         }
 
-        [TearDown]
-        public static void TearDown() {
+        public void TearDown() {
             Directory.Delete(TestConstants.TEST_BUNDLE_DIR, true);
         }
 

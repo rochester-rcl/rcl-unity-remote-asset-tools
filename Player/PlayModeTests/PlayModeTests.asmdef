@@ -1,7 +1,8 @@
 {
     "name": "PlayModeTests",
     "references": [
-        "GUID:b09c52a5b36c3d02097723a43dafe9dc"
+        "GUID:b09c52a5b36c3d02097723a43dafe9dc",
+        "GUID:ca25c341254a0c9ff9d6c62990731a8f"
     ],
     "optionalUnityReferences": [
         "TestAssemblies"

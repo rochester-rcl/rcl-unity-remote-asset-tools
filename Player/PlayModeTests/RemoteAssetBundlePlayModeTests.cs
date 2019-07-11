@@ -1,4 +1,6 @@
 ﻿using System.Collections;
+using System.Threading.Tasks;
+using System.Net;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
@@ -7,16 +9,40 @@ using RemoteAssetBundleTools;
 using UnityEditor;
 namespace RemoteAssetBundleToolsTests
 {
-    public class RemoteAssetBundlePlayModeTests
+    public class RemoteAssetBundlePlayModeTests : AssetBundleTests
     {
-        // A UnityTest behaves like a coroutine in Play Mode. In Edit Mode you can use
-        // `yield return null;` to skip a frame.
         [UnityTest]
-        public IEnumerator RemoteAssetBundlePlayModeTestsWithEnumeratorPasses()
+        public IEnumerator VerifyAsyncDownloadRemoteAssetBundle()
         {
-            // Use the Assert class to test conditions.
-            // Use yield to skip a frame.
-            yield return null;
+            yield return new MonoBehaviourTest<RemoteAssetBundleMonobehaviourTest>();
         }
+    }
+
+    public class RemoteAssetBundleMonobehaviourTest : MonoBehaviour, IMonoBehaviourTest
+    {
+        public bool finished = false;
+        public bool IsTestFinished { get { return finished; } }
+
+        public void Start()
+        {
+            IEnumerator coroutine = TestDownloadRemoteAssetBundle((string error, AssetBundle bundle) => {
+                finished = true;
+                Debug.Log(bundle);
+            });
+            StartCoroutine(coroutine);
+        }
+        public IEnumerator TestDownloadRemoteAssetBundle(System.Action<string, AssetBundle> callback)
+        {
+            AssetBundleInfo info = new AssetBundleInfo(TestConstants.TEST_BUNDLE_NAME, TestConstants.TEST_BUNDLE_PATH);
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, "This is a test");
+            while (!task.IsCompleted)
+            {
+                yield return new WaitForFixedUpdate();
+            }
+            RemoteAssetBundle bundle = task.Result;
+            yield return StartCoroutine(RemoteAssetBundleUtils.DownloadAssetBundleAsync(TestConstants.TEST_SERVER_URL, bundle, callback));
+            // TODO Add another callback for cleaning up  
+        }
+
     }
 }

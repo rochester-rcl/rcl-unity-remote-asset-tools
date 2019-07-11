@@ -1,5 +1,6 @@
-﻿namespace RemoteAssetBundleTools {
-    
+﻿namespace RemoteAssetBundleTools
+{
+
     using System.Collections;
     using System.Collections.Generic;
     using System.IO;
@@ -9,7 +10,8 @@
     using System.Net;
     using System.Threading.Tasks;
 
-    public static class RemoteAssetBundleUtils {
+    public static class RemoteAssetBundleUtils
+    {
 
         ///<summary>Searches a directory for a given AssetBundle
         ///<param name="name">The name of the AssetBundle</param>
@@ -18,15 +20,22 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns an AssetBundleInfo struct</returns>
         ///</summary>
-        public static AssetBundleInfo GetAssetBundleInfo(string name, string assetBundleDir) {
-            if (Directory.Exists(assetBundleDir)) {
+        public static AssetBundleInfo GetAssetBundleInfo(string name, string assetBundleDir)
+        {
+            if (Directory.Exists(assetBundleDir))
+            {
                 string assetPath = Path.Combine(assetBundleDir, name);
-                if (File.Exists(assetPath)) {
+                if (File.Exists(assetPath))
+                {
                     return new AssetBundleInfo(name, assetPath);
-                } else {
+                }
+                else
+                {
                     throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", name, assetBundleDir));
                 }
-            } else {
+            }
+            else
+            {
                 throw new DirectoryNotFoundException(string.Format("AssetBundle directory {0} does not exist!", assetBundleDir));
             }
         }
@@ -38,18 +47,23 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string message) {
-            using (HttpClient client = new HttpClient()) {
-                if (info.Exists()) {
+        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string message)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                if (info.Exists())
+                {
                     MultipartFormDataContent formData = new MultipartFormDataContent();
                     FileInfo f = new FileInfo(info.Path);
                     StreamContent fs = new StreamContent(f.OpenRead());
                     formData.Add(fs, "bundle", f.Name);
                     formData.Add(new StringContent(message), "message");
                     return client.PostAsync(url, formData);
-                } else {
+                }
+                else
+                {
                     throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.Name, info.Path));
-                }      
+                }
             }
         }
 
@@ -58,11 +72,12 @@
         ///<param name="bundle">The RemoteAssetBundle struct</param>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> DeleteAssetBundleAsync(string url, RemoteAssetBundle bundle) {
-            using (HttpClient client = new HttpClient()) {
-                MultipartFormDataContent formData = new MultipartFormDataContent();
-                string formattedUrl = string.Format("{0}?name={1}&versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
-                return client.DeleteAsync(formattedUrl);
+        public static Task<HttpResponseMessage> DeleteAssetBundleAsync(string url, RemoteAssetBundle bundle)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
+                return client.DeleteAsync(endpoint);
             }
         }
 
@@ -70,8 +85,10 @@
         ///<param name="url">The absolute URL to the GET endpoint</param>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url) {
-            using (HttpClient client = new HttpClient()) {
+        public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
                 return client.GetAsync(url);
             }
         }
@@ -80,19 +97,36 @@
         ///<param name="url">The absolute URL to the GET endpoint</param>
         ///<returns>Returns a Task which returns deserialized AssetBundleManifest struct</returns>
         ///</summary>
-        public static async Task<RemoteAssetBundleManifest> GetAssetBundleManifest(string url) {
+        public static async Task<RemoteAssetBundleManifest> GetAssetBundleManifest(string url)
+        {
             HttpResponseMessage response = await GetAssetBundleManifestAsync(url);
             string content = await response.Content.ReadAsStringAsync();
             return RemoteAssetBundleManifest.Deserialize(content);
         }
 
-        // TODO Add version hash on server side
-        public static async Task<AssetBundle> DownloadAssetBundleAsync(string url, string name) {
-            string endpoint = string.Format("{0}/{1}", url, name);
+        // FIXME this won't work since the request has to be made from the main thread
+        /* public static async Task<AssetBundle> DownloadAssetBundleAsync(string url, AssetBundleInfo info) {
+            string endpoint = string.Format("{0}/{1}", url, info.Name);
             using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint)) {
                 var task = Task.Run(() => req.SendWebRequest());
                 var result = await task;
                 return DownloadHandlerAssetBundle.GetContent(req);
+            }
+        } */
+
+        // TODO write documentation for this method and integrate with an AssetBundleCache
+        public static IEnumerator DownloadAssetBundleAsync(string url, RemoteAssetBundle bundle, System.Action<string, AssetBundle> callback)
+        {
+            string endpoint = string.Format("{0}/{1}?versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
+            using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint))
+            {
+                yield return req.SendWebRequest();
+                if (req.isNetworkError || req.isHttpError)
+                {
+                    // TODO add some sort of error handling here - should pass error as first param of callback
+                    callback(req.error, null);
+                }
+                callback(null, DownloadHandlerAssetBundle.GetContent(req));
             }
         }
 
@@ -103,7 +137,8 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns a Task which returns a deserialized RemoteAssetBundle</returns>
         ///</summary>
-        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string message) {
+        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string message)
+        {
             HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message);
             string content = await response.Content.ReadAsStringAsync();
             return RemoteAssetBundle.Deserialize(content);
@@ -114,7 +149,8 @@
         ///<param name="bundle">The RemoteAssetBundle struct</param>
         ///<returns>Returns the status code of the <see cref="HttpResponseMessage" /></returns>
         ///</summary>
-        public static async Task<HttpStatusCode> DeleteAssetBundle(string url, RemoteAssetBundle bundle) {
+        public static async Task<HttpStatusCode> DeleteAssetBundle(string url, RemoteAssetBundle bundle)
+        {
             HttpResponseMessage response = await DeleteAssetBundleAsync(url, bundle);
             return response.StatusCode;
         }
