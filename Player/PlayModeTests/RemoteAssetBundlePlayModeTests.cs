@@ -68,6 +68,7 @@ namespace RemoteAssetBundleToolsTests
         {
             List<Hash128> cachedVersions = new List<Hash128>();
             Caching.GetCachedVersions(bundle.name, cachedVersions);
+            Assert.IsTrue(bundle.Contains(TestConstants.SAMPLE_PREFAB));
             Assert.AreEqual(cachedVersions.Count, 1);
             AssetBundle.UnloadAllAssetBundles(false);
             bool cleared = Caching.defaultCache.ClearCache();
