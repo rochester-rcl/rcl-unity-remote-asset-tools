@@ -81,15 +81,14 @@ namespace RemoteAssetBundleToolsTests {
                 yield return null;
             }
             RemoteAssetBundle bundle = task.Result;
-            Assert.AreEqual(bundle.toHash128().isValid, true);
+            Assert.IsTrue(bundle.toHash128().isValid);
             // Now try to delete it 
             Task<HttpStatusCode> t = RemoteAssetBundleUtils.DeleteAssetBundle(TestConstants.TEST_SERVER_URL, bundle);
             while (!t.IsCompleted) {
                 yield return null;
             }
             HttpStatusCode status = t.Result;
-            Debug.Log(status);
-            Debug.Log("Passed");
+            Assert.AreEqual(status, HttpStatusCode.OK);
         }
     }
 
@@ -107,12 +106,6 @@ namespace RemoteAssetBundleToolsTests {
             GameObject cube = bundle.LoadAsset<GameObject>(TestConstants.SAMPLE_PREFAB);
             Assert.AreNotEqual(cube, null);
             Debug.Log("Passed");
-            // Test async loading 
-            // TODO this currently causes the application to hang - needs to be done on the main thread.
-            /* bundle = Task.Run(() => info.LoadAsync()).GetAwaiter().GetResult();
-            cube = bundle.LoadAsset<GameObject>(TestConstants.SAMPLE_PREFAB);
-            Assert.AreNotEqual(cube, null); */
         }
-
     }
 }

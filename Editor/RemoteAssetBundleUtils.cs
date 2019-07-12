@@ -104,21 +104,15 @@
             return RemoteAssetBundleManifest.Deserialize(content);
         }
 
-        // FIXME this won't work since the request has to be made from the main thread
-        /* public static async Task<AssetBundle> DownloadAssetBundleAsync(string url, AssetBundleInfo info) {
-            string endpoint = string.Format("{0}/{1}", url, info.Name);
-            using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint)) {
-                var task = Task.Run(() => req.SendWebRequest());
-                var result = await task;
-                return DownloadHandlerAssetBundle.GetContent(req);
-            }
-        } */
-
         // TODO write documentation for this method and integrate with an AssetBundleCache
         public static IEnumerator DownloadAssetBundleAsync(string url, RemoteAssetBundle bundle, System.Action<string, AssetBundle> callback)
         {
             string endpoint = string.Format("{0}/{1}?versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
-            using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint))
+            // use the default cache location by leaving the name null
+            CachedAssetBundle cachedBundle = new CachedAssetBundle();
+            cachedBundle.hash = bundle.toHash128();
+            cachedBundle.name = bundle.Info.Name;
+            using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint, cachedBundle, 0))
             {
                 yield return req.SendWebRequest();
                 if (req.isNetworkError || req.isHttpError)
