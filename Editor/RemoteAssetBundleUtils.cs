@@ -104,11 +104,15 @@
             return RemoteAssetBundleManifest.Deserialize(content);
         }
 
-        // TODO write documentation for this method and integrate with an AssetBundleCache
+        ///<summary>Retrieves an AssetBundle from a remote server. Wraps <see cref="UnityWebRequestAssetBundle.GetAssetBundle"/> and uses the default AssetBundle cache
+        ///<param name="url">The absolute URL to the GET endpoint</param>
+        ///<param name="bundle">The RemoteAssetBundle struct</param>
+        ///<param name="callback">An Action with signature (string, AssetBundle) Note - string will be null if there's no error</param>
+        ///<returns>Returns an enumerator. The AssetBundle is available via the callback</returns>
+        ///</summary>
         public static IEnumerator DownloadAssetBundleAsync(string url, RemoteAssetBundle bundle, System.Action<string, AssetBundle> callback)
         {
             string endpoint = string.Format("{0}/{1}?versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
-            // use the default cache location by leaving the name null
             CachedAssetBundle cachedBundle = new CachedAssetBundle();
             cachedBundle.hash = bundle.toHash128();
             cachedBundle.name = bundle.Info.Name;
