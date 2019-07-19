@@ -61,6 +61,7 @@ namespace RemoteAssetBundleTools {
     [System.Serializable]
     public struct RemoteAssetBundle {
         public string VersionHash;
+        public string AppName;
         public AssetBundleInfo Info;
 
         public Hash128 toHash128() {
