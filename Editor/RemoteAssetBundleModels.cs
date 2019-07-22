@@ -1,11 +1,10 @@
-﻿
-
-namespace RemoteAssetBundleTools {
+﻿namespace RemoteAssetBundleTools {
     using System.Collections;
     using System.Collections.Generic;
     using UnityEngine;
     using System.Threading.Tasks;
     using System.IO;
+
     /// <summary>
     /// Struct to hold basic AssetBundle Info
     ///<remarks>Uses Fields instead of Properties in order to work with <see cref="JsonUtility" /> </remarks>
@@ -54,7 +53,7 @@ namespace RemoteAssetBundleTools {
         }
     }
 
-    // TODO what else do we need here?
+    // TODO add a verified field to send only to dev build of app
     ///<summary>Struct to hold data about an asset bundle that lives on a remote server
     ///<remarks>Uses Fields instead of Properties in order to work with <see cref="JsonUtility" /> </remarks>
     ///</summary>

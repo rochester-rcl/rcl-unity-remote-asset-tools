@@ -60,7 +60,10 @@
                     StreamContent fs = new StreamContent(f.OpenRead());
                     formData.Add(fs, "bundle", f.Name);
                     formData.Add(new StringContent(Application.productName), "AppName");
-                    formData.Add(new StringContent(message), "message");
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        formData.Add(new StringContent(message), "message");
+                    }
                     return client.PostAsync(url, formData);
                 }
                 else
