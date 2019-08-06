@@ -51,7 +51,7 @@ namespace RemoteAssetBundleToolsTests
             // Try to download again and check the cache
             System.Action<string, AssetBundle> cb = TestDownloadCachedAsset;
             yield return StartCoroutine(RemoteAssetBundleUtils.DownloadAssetBundleAsync(TestConstants.TEST_SERVER_URL, bundle, cb));
-            
+
             // Now try to delete it 
             Task<HttpStatusCode> t = RemoteAssetBundleUtils.DeleteAssetBundle(TestConstants.TEST_SERVER_URL, bundle);
             while (!t.IsCompleted)

@@ -78,6 +78,37 @@ namespace RemoteAssetBundleToolsTests
         }
 
         [UnityTest, Order(3)]
+        public IEnumerator VerifyGetAssetBundleManifestWithUnverifiedBundle()
+        {
+            Debug.Log("Testing RemoteAssetBundleUtils.GetAssetBundleManifest");
+            Task<RemoteAssetBundleManifest> task = RemoteAssetBundleUtils.GetAssetBundleManifest(TestConstants.TEST_SERVER_URL, Application.productName);
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+            RemoteAssetBundleManifest content = task.Result;
+            // Should at the very least be an empty array
+            Assert.AreNotEqual(content.Bundles, null);
+            Assert.AreEqual(content.Bundles.Length, 0);
+            Debug.Log("Passed");
+        }
+
+
+        [UnityTest, Order(4)]
+        public IEnumerator VerifyUpdateAssetBundle()
+        {
+            Debug.Log("Testing RemoteAssetBundleUtils.VerifyAssetBundle");
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.VerifyAssetBundle(TestConstants.TEST_SERVER_URL, bundle, TestConstants.JWT_TOKEN_NAME);
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+            bundle = task.Result;
+            Assert.IsTrue(bundle.toHash128().isValid);
+            Assert.IsTrue(bundle.Verified);
+        }
+
+        [UnityTest, Order(5)]
         public IEnumerator VerifyGetAssetBundleManifest()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.GetAssetBundleManifest");
@@ -89,6 +120,7 @@ namespace RemoteAssetBundleToolsTests
             RemoteAssetBundleManifest content = task.Result;
             // Should at the very least be an empty array
             Assert.AreNotEqual(content.Bundles, null);
+            Assert.AreEqual(content.Bundles.Length, 1);
             foreach (var _bundle in content.Bundles)
             {
                 Assert.IsTrue(_bundle.toHash128().isValid);
@@ -97,9 +129,10 @@ namespace RemoteAssetBundleToolsTests
             Debug.Log("Passed");
         }
 
-        [UnityTest, Order(4)]
+        [UnityTest, Order(6)]
         public IEnumerator VerifyDeleteAssetBundle()
         {
+            Debug.Log("Testing RemoteAssetBundleUtils.DeleteAssetBundle");
             Task<HttpStatusCode> task = RemoteAssetBundleUtils.DeleteAssetBundle(TestConstants.TEST_SERVER_URL, bundle);
             while (!task.IsCompleted)
             {

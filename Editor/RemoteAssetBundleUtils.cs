@@ -4,6 +4,7 @@
     using System.Collections;
     using System.Collections.Generic;
     using System.IO;
+    using System.Text;
     using UnityEngine;
     using UnityEditor;
     using UnityEngine.Networking;
@@ -73,6 +74,45 @@
             }
         }
 
+        ///<summary>Sets a RemoteAssetBundle's Verified property to true so it will be loaded on manifests that require all bundles to be verified.
+        ///<para>This is enforced by default as an extra set of checks and balances when calling <see cref="GetAssetBundleManifestAsync"/> with verified = true</para> 
+        ///<param name="url">The absolute URL to the PUT endpoint</param>
+        ///<param name="bundle">The RemoteAssetBundle struct</param>
+        ///<param name="jwtName">Optional name of a JSON Web Token (placed somewhere in Assets) that can be used for authentication</param>
+        ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
+        ///</summary>
+        public static Task<HttpResponseMessage> VerifyAssetBundleAsync(string url, RemoteAssetBundle bundle, string jwtName = null)
+        {
+            bool useJWT = !string.IsNullOrEmpty(jwtName);
+            using (HttpClient client = new HttpClient())
+            {
+                if (useJWT)
+                {
+                    string jwt = FindJWT(jwtName);
+                    if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+                }
+                StringContent content = new StringContent("{\"verified\":true}", Encoding.UTF8, "application/json");
+                string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.Info.Name), WebUtility.UrlEncode(bundle.VersionHash));
+                return client.PutAsync(endpoint, content);
+            }
+        }
+
+        ///<summary>Simplified version of <see cref="VerifyAssetBundleAsync"/>
+        ///<para>This is enforced by default as an extra set of checks and balances when calling <see cref="GetAssetBundleManifestAsync"/> with verified = true</para> 
+        ///<param name="url">The absolute URL to the PUT endpoint</param>
+        ///<param name="bundle">The RemoteAssetBundle struct</param>
+        ///<param name="jwtName">Optional name of a JSON Web Token (placed somewhere in Assets) that can be used for authentication</param>
+        ///<returns>Returns a Task which returns a deserialized RemoteAssetBundle</returns>
+        ///</summary>
+        public static async Task<RemoteAssetBundle> VerifyAssetBundle(string url, RemoteAssetBundle bundle, string jwtName = null)
+        {
+            HttpResponseMessage response = await VerifyAssetBundleAsync(url, bundle, jwtName);
+            string content = await response.Content.ReadAsStringAsync();
+            return RemoteAssetBundle.Deserialize(content);
+        }
+
+
         ///<summary>Deletes an AssetBundle from a RESTful service
         ///<param name="url">The absolute URL to the POST endpoint</param>
         ///<param name="bundle">The RemoteAssetBundle struct</param>
@@ -82,10 +122,11 @@
         {
             using (HttpClient client = new HttpClient())
             {
-                string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
+                string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, WebUtility.UrlEncode(bundle.Info.Name), WebUtility.UrlEncode(bundle.VersionHash));
                 return client.DeleteAsync(endpoint);
             }
         }
+
         ///<summary>Simplified version of <see cref="UploadAssetBundleAsync" />
         ///<param name="url">The absolute URL to the POST endpoint</param>
         ///<param name="info">The AssetBundleInfo struct</param>
@@ -141,14 +182,18 @@
         ///<summary>Retrieves a list of RemoteAssetBundles from a RESTful service
         ///<param name="url">The absolute URL to the GET endpoint</param>
         ///<param name="appName">Optional parameter to filter the manifest by product name</param>
+        ///<param name="verified">Optional parameter to filter the manifest by verified (i.e) production bundles only.This is on by default</param>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url, string appName = null)
+        public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url, string appName = null, bool verified = true)
         {
-            string endpoint = !string.IsNullOrEmpty(appName) ? string.Format("{0}?={1}", url, appName) : url;
+            // TODO need to find a safer way to build these URIs
+
+            string endpoint = string.Format("{0}/?verified={1}", url, WebUtility.UrlEncode(verified.ToString()));
+            if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appname={0}", WebUtility.UrlEncode(appName));
             using (HttpClient client = new HttpClient())
             {
-                return client.GetAsync(url);
+                return client.GetAsync(endpoint);
             }
         }
 

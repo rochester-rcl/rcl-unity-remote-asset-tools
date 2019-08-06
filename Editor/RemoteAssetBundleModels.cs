@@ -61,6 +61,7 @@
     public struct RemoteAssetBundle {
         public string VersionHash;
         public string AppName;
+        public bool Verified;
         public AssetBundleInfo Info;
 
         public Hash128 toHash128() {
