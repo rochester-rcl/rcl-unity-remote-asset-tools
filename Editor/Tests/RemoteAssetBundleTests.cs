@@ -19,6 +19,7 @@ namespace RemoteAssetBundleToolsTests
         public const string TEST_BUNDLE_DIR = "Assets/RemoteAssetBundleTools/Editor/Tests/TestBundles";
         public static string TEST_BUNDLE_PATH = string.Format("{0}/{1}", TEST_BUNDLE_DIR, TEST_BUNDLE_NAME);
         public const string TEST_SERVER_URL = "http://localhost:3000/bundles";
+        public const string TEST_SERVER_ENDPOINT_CHECK = "http://localhost:3000/";
         public const string JWT_TOKEN_NAME = "remote-asset-token";
 
     }
@@ -53,6 +54,29 @@ namespace RemoteAssetBundleToolsTests
         RemoteAssetBundle bundle;
 
         [UnityTest, Order(1)]
+        public static IEnumerator VerifyEndpoint()
+        {
+            Debug.Log("Testing RemoteAssetBundleUtils.CheckEndpoint");
+            Task<bool> task = RemoteAssetBundleUtils.CheckEndpoint(TestConstants.TEST_SERVER_ENDPOINT_CHECK);
+            while (!task.IsCompleted)
+            {
+                yield return null;
+            }
+            bool status = task.Result;
+            Assert.IsTrue(status);
+
+            // Now check JWT authentication
+            Task<bool> t = RemoteAssetBundleUtils.CheckJWT(TestConstants.TEST_SERVER_ENDPOINT_CHECK, TestConstants.JWT_TOKEN_NAME);
+            while (!t.IsCompleted)
+            {
+                yield return null;
+            }
+            bool jwtStatus = t.Result;
+            Assert.IsTrue(jwtStatus);
+            Debug.Log("Passed");
+        }
+
+        [UnityTest, Order(2)]
         public static IEnumerator VerifyGetAssetBundleInfo()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.GetAssetBundleInfo");
@@ -62,7 +86,7 @@ namespace RemoteAssetBundleToolsTests
             yield return null;
         }
 
-        [UnityTest, Order(2)]
+        [UnityTest, Order(3)]
         public IEnumerator VerifyUploadAssetBundle()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.UploadAssetBundle");
@@ -77,7 +101,7 @@ namespace RemoteAssetBundleToolsTests
             Assert.AreEqual(Application.productName, bundle.AppName);
         }
 
-        [UnityTest, Order(3)]
+        [UnityTest, Order(4)]
         public IEnumerator VerifyGetAssetBundleManifestWithUnverifiedBundle()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.GetAssetBundleManifest");
@@ -94,7 +118,7 @@ namespace RemoteAssetBundleToolsTests
         }
 
 
-        [UnityTest, Order(4)]
+        [UnityTest, Order(5)]
         public IEnumerator VerifyUpdateAssetBundle()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.VerifyAssetBundle");
@@ -108,7 +132,7 @@ namespace RemoteAssetBundleToolsTests
             Assert.IsTrue(bundle.Verified);
         }
 
-        [UnityTest, Order(5)]
+        [UnityTest, Order(6)]
         public IEnumerator VerifyGetAssetBundleManifest()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.GetAssetBundleManifest");
@@ -129,7 +153,7 @@ namespace RemoteAssetBundleToolsTests
             Debug.Log("Passed");
         }
 
-        [UnityTest, Order(6)]
+        [UnityTest, Order(7)]
         public IEnumerator VerifyDeleteAssetBundle()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.DeleteAssetBundle");

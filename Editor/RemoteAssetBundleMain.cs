@@ -7,6 +7,8 @@ using RemoteAssetBundleTools;
 public class RemoteAssetBundleMain : EditorWindow
 {
     public RemoteAssetBundleGUITabs Tabs { get; set; }
+    public delegate void ParentDisabled();
+    public static event ParentDisabled OnParentDisabled;
     
     [MenuItem("Window/General/Remote Asset Bundles")]
     static void Init()
@@ -40,5 +42,13 @@ public class RemoteAssetBundleMain : EditorWindow
     {
         GUILayout.Label("Remote Asset Bundles", EditorStyles.boldLabel);
         Tabs.ShowTabs();
+    }
+
+    public void OnDisable()
+    {
+        if (OnParentDisabled != null)
+        {
+            OnParentDisabled();
+        }
     }
 }

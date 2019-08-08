@@ -15,6 +15,28 @@
     public static class RemoteAssetBundleUtils
     {
 #if UNITY_EDITOR
+        public static async Task<bool> CheckEndpoint(string url)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                HttpResponseMessage res = await client.GetAsync(url);
+                return res.IsSuccessStatusCode;
+            }
+
+        }
+
+        public static async Task<bool> CheckJWT(string url, string jwtName)
+        {
+            using (HttpClient client = new HttpClient())
+            {
+                string jwt = FindJWT(jwtName);
+                if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
+                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+                HttpResponseMessage res = await client.PostAsync(url, null);
+                return res.IsSuccessStatusCode;
+            }
+
+        }
         ///<summary>Finds the JSON Web Token required to POST AssetBundles to the server
         ///<param name="name">The name of the JWT file</param>
         ///<returns>Returns the JWT as a string</returns>
