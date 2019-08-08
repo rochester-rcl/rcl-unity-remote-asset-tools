@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+#if UNITY_EDITOR
 namespace RemoteAssetBundleTools
 {
     public class RemoteAssetBundleGUITab
@@ -104,3 +105,4 @@ namespace RemoteAssetBundleTools
 
     }
 }
+#endif

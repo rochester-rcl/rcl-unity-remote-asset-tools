@@ -22,6 +22,13 @@
             Path = path;
         }
 
+        public AssetBundleInfo(string path)
+        {
+            FileInfo info = new FileInfo(path);
+            Name = info.Name;
+            Path = info.Directory.ToString();
+        }
+
         ///<summary> Checks whether or not the AssetBundle exists on disk</summary>
         public bool Exists() {
             return File.Exists(Path);

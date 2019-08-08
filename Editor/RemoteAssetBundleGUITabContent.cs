@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using System.Threading.Tasks;
 using RemoteAssetBundleTools;
 
+#if UNITY_EDITOR
 public enum MessageStatus { Success, Error };
 
 public struct StatusMessage
@@ -29,7 +29,8 @@ public abstract class RemoteAssetBundleGUITabContent
 
     protected List<StatusMessage> Messages = new List<StatusMessage>();
 
-    protected GUILayoutOption[] DefaultOptions = { GUILayout.ExpandWidth(true), GUILayout.MinWidth(300), GUILayout.MaxWidth(500) };
+    protected GUILayoutOption[] DefaultTextFieldOptions = { GUILayout.ExpandWidth(true), GUILayout.MinWidth(100) };
+    protected GUILayoutOption[] DefaultButtonOptions = { GUILayout.MaxWidth(85f) };
     protected GUIStyle MessageStyle = new GUIStyle(EditorStyles.label);
     protected GUIStyle ScrollViewStyle = new GUIStyle(EditorStyles.textArea);
     protected Color ErrorColor = new Color(1.0f, 0.0f, 0.0f);
@@ -65,6 +66,7 @@ public abstract class RemoteAssetBundleGUITabContent
     public void ShowMessages()
     {
         EditorGUILayout.LabelField("Status Messages");
+        EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
         MessageScrollPos = GUILayout.BeginScrollView(MessageScrollPos, false, false);
         {
             foreach (StatusMessage message in Messages)
@@ -102,10 +104,11 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         GUILayout.Space(TabLayoutPadding);
         GUILayout.Label(Label);
         GUILayout.Space(TabLayoutPadding / 2);
-        ServerEndpoint = EditorGUILayout.TextField("Server URL", ServerEndpoint, DefaultOptions);
-        JWTFile = EditorGUILayout.ObjectField("JWT Auth File", JWTFile, typeof(TextAsset), false, DefaultOptions);
+        ServerEndpoint = EditorGUILayout.TextField("Server URL", ServerEndpoint, DefaultTextFieldOptions);
+        JWTFile = EditorGUILayout.ObjectField("JWT Auth File", JWTFile, typeof(TextAsset), false, DefaultTextFieldOptions);
         GUILayout.Space(TabLayoutPadding);
         CheckEndpointButton();
+        GUILayout.Space(TabLayoutPadding / 4);
         CheckJWTButton();
         GUILayout.Space(TabLayoutPadding);
         ShowMessages();
@@ -160,7 +163,7 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         GUILayout.BeginHorizontal();
         {
             GUILayout.Label("Check Server Connection");
-            if (GUILayout.Button("Check Server", DefaultOptions))
+            if (GUILayout.Button("Check Server", DefaultButtonOptions))
             {
                 CheckEndpoint();
             }
@@ -168,13 +171,14 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         }
         GUILayout.EndHorizontal();
     }
-
+    // TODO should use a delegate / event for this and bubble up to Main instead
     public void CheckJWTButton()
     {
         GUILayout.BeginHorizontal();
         {
             GUILayout.Label("Check JWT Authentication");
-            if (GUILayout.Button("Check JWT", DefaultOptions))
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Check JWT", DefaultButtonOptions))
             {
                 CheckJWT();
             }
@@ -192,3 +196,72 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         }
     }
 }
+
+/*********** ADD TAB *****************************************************/
+
+public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
+{
+    public AssetBundleInfo ABInfo { get; set; }
+    public string UploadMessage;
+    public string AppName;
+    public delegate void UploadRemoteAssetBundle(AssetBundleInfo bundleInfo, string appName, string message);
+    public event UploadRemoteAssetBundle OnUploadRemoteAssetBundle;
+    public RemoteAssetBundleGUIAddTab(string label) : base(label) { }
+
+    public override void Show()
+    {
+        GUI.backgroundColor = DefaultColor;
+        GUILayout.Space(TabLayoutPadding);
+        GUILayout.Label(Label);
+        GUILayout.Space(TabLayoutPadding);
+        OpenAssetBundleButton();
+        GUILayout.Space(TabLayoutPadding / 2);
+        AppName = EditorGUILayout.TextField("App Name (optional)", AppName, DefaultTextFieldOptions);
+        UploadMessage = EditorGUILayout.TextField("Upload Message (optional)", UploadMessage, DefaultTextFieldOptions);
+        GUILayout.Space(TabLayoutPadding);
+        UploadAssetBundleButton();
+        GUILayout.Space(TabLayoutPadding);
+        ShowMessages();
+
+    }
+
+    public void OpenAssetBundleButton()
+    {
+        GUILayout.BeginHorizontal();
+        {
+            EditorGUILayout.LabelField("Select Local Asset Bundle");
+            if (GUILayout.Button("Open File", DefaultButtonOptions))
+            {
+                OpenAssetBundleDialog();
+            }
+        }
+        GUILayout.EndHorizontal();
+    }
+
+    public void OpenAssetBundleDialog()
+    {
+        string abPath = EditorUtility.OpenFilePanel("Select an AssetBundle", "", "unity3d");
+        if (!string.IsNullOrEmpty(abPath))
+        {
+            ABInfo = new AssetBundleInfo(abPath);
+            AddMessage(string.Format("Current AssetBundle is {0}", ABInfo.Name), MessageStatus.Success);
+        }
+    }
+
+    public void UploadAssetBundleButton()
+    {
+        if (GUILayout.Button("Save"))
+        {
+            UploadAssetBundle();
+        }
+    }
+
+    public void UploadAssetBundle()
+    {
+        if (OnUploadRemoteAssetBundle != null)
+        {
+            OnUploadRemoteAssetBundle(ABInfo, AppName, UploadMessage);
+        }
+    }
+}
+#endif
