@@ -13,6 +13,9 @@ public class RemoteAssetBundleMain : EditorWindow
 
     private RemoteAssetBundleGUIConfigureTab GUIConfigureTab { get; set; }
     private RemoteAssetBundleGUIAddTab GUIAddTab { get; set; }
+    private RemoteAssetBundleGUIEditTab GUIEditTab { get; set; }
+
+    private const string UploadEndpoint = "/bundles/";
 
     [MenuItem("Window/General/Remote Asset Bundles")]
     static void Init()
@@ -25,23 +28,17 @@ public class RemoteAssetBundleMain : EditorWindow
     {
         GUIConfigureTab = new RemoteAssetBundleGUIConfigureTab("Configure Settings to Connect to a Remote Asset Bundle Server");
         GUIAddTab = new RemoteAssetBundleGUIAddTab("Add a Remote Asset Bundle to a Server");
+        GUIEditTab = new RemoteAssetBundleGUIEditTab("Edit Remote Asset Bundles");
         Tabs = new RemoteAssetBundleGUITabs(new List<RemoteAssetBundleGUITab>
         {
             new RemoteAssetBundleGUITab("Configure", 0, GUIConfigureTab.Show),
             new RemoteAssetBundleGUITab("Add", 1, GUIAddTab.Show),
-            new RemoteAssetBundleGUITab("Edit", 2, EditTab)
+            new RemoteAssetBundleGUITab("Edit", 2, GUIEditTab.Show)
         });
+        GUIConfigureTab.OnCheckEndpoint += OnCheckEndpoint;
+        GUIConfigureTab.OnCheckJWT += OnCheckJWT;
         GUIAddTab.OnUploadRemoteAssetBundle += OnUploadAssetBundle;
-    }
-
-    void AddTab()
-    {
-
-    }
-
-    void EditTab()
-    {
-
+        GUIEditTab.OnLoadManifests += OnLoadManifests;
     }
 
     void OnGUI()
@@ -58,15 +55,98 @@ public class RemoteAssetBundleMain : EditorWindow
         }
     }
 
-    // Async Server Methods
-    public void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, string message)
+    public string FormatEndpoint(string endpoint)
     {
-        PerformUpload(assetBundleInfo, appName, message);
+        if (!string.IsNullOrEmpty(GUIConfigureTab.serverEndpoint))
+        {
+            return string.Format("{0}{1}", GUIConfigureTab.serverEndpoint, endpoint);
+        }
+        else
+        {
+            return null;
+        }
     }
 
-    public async void PerformUpload(AssetBundleInfo assetBundleInfo, string appName, string message)
+    // Async Server Methods
+    public async void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, string message)
     {
+        Object jwt = GUIConfigureTab.jwtFile;
+        string endpoint = FormatEndpoint(UploadEndpoint);
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            string jwtName = jwt ? jwt.name : null;
+            try
+            {
+                RemoteAssetBundle ab = await RemoteAssetBundleUtils.UploadAssetBundle(endpoint, assetBundleInfo, appName, message, jwtName);
+                GUIAddTab.AddMessage(string.Format("Successfully Uploaded Asset Bundle {0}", assetBundleInfo.Name), MessageStatus.Success);
+            }
+            catch (System.Exception ex)
+            {
+                GUIAddTab.AddMessage(string.Format("Unable to upload Asset Bundle {0}. \n Reason: {1}", assetBundleInfo.Name, ex.Message), MessageStatus.Error);
+                throw;
+            }
+        }
+    }
 
+    public async void OnCheckEndpoint(string serverEndpoint)
+    {
+        bool status;
+        if (!string.IsNullOrEmpty(serverEndpoint))
+        {
+            status = await RemoteAssetBundleUtils.CheckEndpoint(serverEndpoint);
+        }
+        else
+        {
+            status = false;
+        }
+        if (status)
+        {
+            GUIConfigureTab.AddMessage("Successfully Connected to Server!", MessageStatus.Success);
+        }
+        else
+        {
+            GUIConfigureTab.AddMessage("Unable to Connect to Server!", MessageStatus.Error);
+        }
+    }
+
+    public async void OnCheckJWT(string serverEndpoint, Object jwt)
+    {
+        bool status;
+        if (!string.IsNullOrEmpty(serverEndpoint) && jwt)
+        {
+            status = await RemoteAssetBundleUtils.CheckJWT(serverEndpoint, jwt.name);
+        }
+        else
+        {
+            status = false;
+        }
+        if (status)
+        {
+            GUIConfigureTab.AddMessage(string.Format("Successfully Connected to Server with JWT {0}!", jwt.name), MessageStatus.Success);
+        }
+        else
+        {
+            GUIConfigureTab.AddMessage(string.Format("Unable to Connect to Server with JWT {0}!", jwt.name), MessageStatus.Error);
+        }
+    }
+
+    public async void OnLoadManifests()
+    {
+        string endpoint = FormatEndpoint(UploadEndpoint);
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            try
+            {
+                RemoteAssetBundleManifest manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(endpoint, null, false);
+                GUIEditTab.SetManifests(manifest);
+            }
+            catch (System.Exception ex)
+            {
+
+                GUIEditTab.AddMessage(string.Format("Unable to Load Manifests. Have you Uploaded any Asset Bundles? Info: {0}", ex.Message), MessageStatus.Error);
+                throw;
+            }
+        }
     }
 }
 #endif

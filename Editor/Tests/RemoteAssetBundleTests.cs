@@ -91,7 +91,7 @@ namespace RemoteAssetBundleToolsTests
         {
             Debug.Log("Testing RemoteAssetBundleUtils.UploadAssetBundle");
             AssetBundleInfo info = new AssetBundleInfo(TestConstants.TEST_BUNDLE_NAME, TestConstants.TEST_BUNDLE_PATH);
-            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, "This is a test", TestConstants.JWT_TOKEN_NAME);
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, null, "This is a test", TestConstants.JWT_TOKEN_NAME);
             while (!task.IsCompleted)
             {
                 yield return null;

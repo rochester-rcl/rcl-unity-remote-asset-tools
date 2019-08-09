@@ -65,7 +65,7 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string message, string jwtName = null)
+        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string appName = null, string message = null, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
             using (HttpClient client = new HttpClient())
@@ -82,7 +82,8 @@
                     FileInfo f = new FileInfo(info.Path);
                     StreamContent fs = new StreamContent(f.OpenRead());
                     formData.Add(fs, "bundle", f.Name);
-                    formData.Add(new StringContent(Application.productName), "AppName");
+                    string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
+                    formData.Add(new StringContent(app), "AppName");
                     if (!string.IsNullOrEmpty(message))
                     {
                         formData.Add(new StringContent(message), "message");
@@ -157,9 +158,9 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns a Task which returns a deserialized RemoteAssetBundle</returns>
         ///</summary>
-        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string message, string jwtName = null)
+        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string appName = null, string message = null, string jwtName = null)
         {
-            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message, jwtName);
+            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, appName, message, jwtName);
             string content = await response.Content.ReadAsStringAsync();
             return RemoteAssetBundle.Deserialize(content);
         }
@@ -211,7 +212,7 @@
         {
             // TODO need to find a safer way to build these URIs
 
-            string endpoint = string.Format("{0}/?verified={1}", url, WebUtility.UrlEncode(verified.ToString()));
+            string endpoint = string.Format("{0}?verified={1}", url, WebUtility.UrlEncode(verified.ToString()));
             if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appname={0}", WebUtility.UrlEncode(appName));
             using (HttpClient client = new HttpClient())
             {
@@ -224,10 +225,11 @@
         ///<param name="appName">Optional parameter to filter the manifest by product name</param>
         ///<returns>Returns a Task which returns deserialized AssetBundleManifest struct</returns>
         ///</summary>
-        public static async Task<RemoteAssetBundleManifest> GetAssetBundleManifest(string url, string appName = null)
+        public static async Task<RemoteAssetBundleManifest> GetAssetBundleManifest(string url, string appName = null, bool verified = true)
         {
-            HttpResponseMessage response = await GetAssetBundleManifestAsync(url, appName);
+            HttpResponseMessage response = await GetAssetBundleManifestAsync(url, appName, verified);
             string content = await response.Content.ReadAsStringAsync();
+            Debug.Log(content);
             return RemoteAssetBundleManifest.Deserialize(content);
         }
 

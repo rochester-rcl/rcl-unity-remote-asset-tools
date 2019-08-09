@@ -26,7 +26,7 @@
         {
             FileInfo info = new FileInfo(path);
             Name = info.Name;
-            Path = info.Directory.ToString();
+            Path = path;
         }
 
         ///<summary> Checks whether or not the AssetBundle exists on disk</summary>

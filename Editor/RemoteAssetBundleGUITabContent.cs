@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using RemoteAssetBundleTools;
+using System.Linq;
 
 #if UNITY_EDITOR
 public enum MessageStatus { Success, Error };
@@ -17,6 +19,12 @@ public struct StatusMessage
         Content = content;
         Status = status;
     }
+}
+
+public static class RemoteAssetBundleEditorPrefsKeys
+{
+    public const string ConfigKey = "RemoteAssetBundleConfig";
+    public const string AppsKey = "RemoteAssetBundleApps";
 }
 
 /*************************** ABSTRACT CLASS ************************************************/
@@ -84,14 +92,17 @@ public abstract class RemoteAssetBundleGUITabContent
 public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
 {
     [SerializeField]
-    public string ServerEndpoint;
+    public string serverEndpoint;
     [SerializeField]
-    private Object JWTFile;
-    private string EditorPrefsKey = "RemoteAssetBundleConfig";
+    public Object jwtFile;
+    public delegate void HandleCheckEndpoint(string endpoint);
+    public delegate void HandleCheckJWT(string endpoint, Object jwt);
+    public event HandleCheckEndpoint OnCheckEndpoint;
+    public event HandleCheckJWT OnCheckJWT;
 
     public RemoteAssetBundleGUIConfigureTab(string label) : base(label)
     {
-        string data = EditorPrefs.GetString(EditorPrefsKey, JsonUtility.ToJson(this, false));
+        string data = EditorPrefs.GetString(RemoteAssetBundleEditorPrefsKeys.ConfigKey, JsonUtility.ToJson(this, false));
         if (!string.IsNullOrEmpty(data))
         {
             JsonUtility.FromJsonOverwrite(data, this);
@@ -104,8 +115,8 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         GUILayout.Space(TabLayoutPadding);
         GUILayout.Label(Label);
         GUILayout.Space(TabLayoutPadding / 2);
-        ServerEndpoint = EditorGUILayout.TextField("Server URL", ServerEndpoint, DefaultTextFieldOptions);
-        JWTFile = EditorGUILayout.ObjectField("JWT Auth File", JWTFile, typeof(TextAsset), false, DefaultTextFieldOptions);
+        serverEndpoint = EditorGUILayout.TextField("Server URL", serverEndpoint, DefaultTextFieldOptions);
+        jwtFile = EditorGUILayout.ObjectField("JWT Auth File", jwtFile, typeof(TextAsset), false, DefaultTextFieldOptions);
         GUILayout.Space(TabLayoutPadding);
         CheckEndpointButton();
         GUILayout.Space(TabLayoutPadding / 4);
@@ -114,47 +125,19 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         ShowMessages();
     }
 
-    public async void CheckEndpoint()
+    public void CheckEndpoint()
     {
-        bool status;
-        if (!string.IsNullOrEmpty(ServerEndpoint))
+        if (OnCheckEndpoint != null)
         {
-            status = await RemoteAssetBundleUtils.CheckEndpoint(ServerEndpoint);
+            OnCheckEndpoint(serverEndpoint);
         }
-        else
-        {
-            status = false;
-        }
-        if (status)
-        {
-            AddMessage("Successfully Connected to Server!", MessageStatus.Success);
-        }
-        else
-        {
-            AddMessage("Unable to Connect to Server!", MessageStatus.Error);
-        }
-        Debug.Log(status);
     }
 
-    public async void CheckJWT()
+    public void CheckJWT()
     {
-        bool status;
-        if (!string.IsNullOrEmpty(ServerEndpoint) && JWTFile)
+        if (OnCheckJWT != null)
         {
-            status = await RemoteAssetBundleUtils.CheckJWT(ServerEndpoint, JWTFile.name);
-            Debug.Log(status);
-        }
-        else
-        {
-            status = false;
-        }
-        if (status)
-        {
-            AddMessage(string.Format("Successfully Connected to Server with JWT {0}!", JWTFile.name), MessageStatus.Success);
-        }
-        else
-        {
-            AddMessage(string.Format("Unable to Connect to Server with JWT {0}!", JWTFile.name), MessageStatus.Error);
+            OnCheckJWT(serverEndpoint, jwtFile);
         }
     }
 
@@ -192,7 +175,7 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         string data = JsonUtility.ToJson(this, false);
         if (!string.IsNullOrEmpty(data))
         {
-            EditorPrefs.SetString(EditorPrefsKey, data);
+            EditorPrefs.SetString(RemoteAssetBundleEditorPrefsKeys.ConfigKey, data);
         }
     }
 }
@@ -263,5 +246,101 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
             OnUploadRemoteAssetBundle(ABInfo, AppName, UploadMessage);
         }
     }
+}
+
+/********** EDIT TAB *********/
+public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
+{
+    protected HashSet<string> Apps = new HashSet<string>();
+    protected RemoteAssetBundleManifest Manifests { get; set; }
+    protected RemoteAssetBundleManifest CurrentManifest { get; set; }
+    protected string CurrentAppName { get; set; }
+    protected int selectedIndex;
+    private Vector2 AppViewScrollPos;
+    private Vector2 BundleViewScrollPos;
+    public delegate void HandleLoadManifests();
+    public event HandleLoadManifests OnLoadManifests;
+
+    public RemoteAssetBundleGUIEditTab(string label) : base(label) { }
+
+    public override void Show()
+    {
+        GUI.backgroundColor = DefaultColor;
+        GUILayout.Space(TabLayoutPadding);
+        GUILayout.Label(Label);
+        GUILayout.Space(TabLayoutPadding);
+        GUILayout.BeginHorizontal();
+        {
+            AppSelector();
+            GUILayout.FlexibleSpace();
+            ManifestEditor();
+        }
+        GUILayout.EndHorizontal();
+        ShowMessages();
+    }
+
+    public void LoadManifests()
+    {
+        if (OnLoadManifests != null)
+        {
+            OnLoadManifests();
+        }
+    }
+
+    public void SetManifests(RemoteAssetBundleManifest manifest)
+    {
+        Manifests = manifest;
+        foreach (RemoteAssetBundle b in Manifests.Bundles)
+        {
+            Apps.Add(b.AppName);
+        }
+    }
+
+    public void ManifestEditor()
+    {
+        if (!string.IsNullOrEmpty(CurrentAppName))
+        {
+            MultiColumnHeaderState headerState = RemoteAssetBundleTreeView.CreateDefaultMultiColumnHeaderState();
+            TreeViewState state = new TreeViewState();
+            RemoteAssetBundleTreeView tree = new RemoteAssetBundleTreeView(state, headerState, CurrentManifest, CurrentAppName);
+            Rect lastRect = GUILayoutUtility.GetLastRect();
+            lastRect.x = lastRect.x + 20;
+            lastRect.height = 300;
+            tree.OnGUI(lastRect);
+        }
+    }
+
+    public void AppSelector()
+    {
+        GUILayout.BeginVertical();
+        {
+            EditorGUILayout.LabelField("Select App To View Manifest");
+            if (GUILayout.Button("Load", DefaultButtonOptions))
+            {
+                LoadManifests();
+            }
+            AppViewScrollPos = GUILayout.BeginScrollView(AppViewScrollPos, ScrollViewStyle);
+            {
+                foreach (string app in Apps)
+                {
+                    if (GUILayout.Button(app))
+                    {
+                        SelectCurrentManifest(app);
+                    }
+                }
+            }
+            GUILayout.EndScrollView();
+        }
+        GUILayout.EndVertical();
+    }
+
+    public void SelectCurrentManifest(string appName)
+    {
+        RemoteAssetBundleManifest manifest = new RemoteAssetBundleManifest();
+        manifest.Bundles = Manifests.Bundles.Where(ab => ab.AppName == appName).ToArray();
+        CurrentManifest = manifest;
+        CurrentAppName = appName;
+    }
+
 }
 #endif
