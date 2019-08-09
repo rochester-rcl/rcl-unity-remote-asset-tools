@@ -258,6 +258,7 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     protected int selectedIndex;
     private Vector2 AppViewScrollPos;
     private Vector2 BundleViewScrollPos;
+    private RemoteAssetBundleTreeView BundleTree;
     public delegate void HandleLoadManifests();
     public event HandleLoadManifests OnLoadManifests;
 
@@ -300,13 +301,10 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     {
         if (!string.IsNullOrEmpty(CurrentAppName))
         {
-            MultiColumnHeaderState headerState = RemoteAssetBundleTreeView.CreateDefaultMultiColumnHeaderState();
-            TreeViewState state = new TreeViewState();
-            RemoteAssetBundleTreeView tree = new RemoteAssetBundleTreeView(state, headerState, CurrentManifest, CurrentAppName);
             Rect lastRect = GUILayoutUtility.GetLastRect();
             lastRect.x = lastRect.x + 20;
             lastRect.height = 300;
-            tree.OnGUI(lastRect);
+            BundleTree.OnGUI(lastRect);
         }
     }
 
@@ -340,6 +338,9 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
         manifest.Bundles = Manifests.Bundles.Where(ab => ab.AppName == appName).ToArray();
         CurrentManifest = manifest;
         CurrentAppName = appName;
+        MultiColumnHeaderState headerState = RemoteAssetBundleTreeView.CreateDefaultMultiColumnHeaderState();
+        TreeViewState state = new TreeViewState();
+        BundleTree = new RemoteAssetBundleTreeView(state, headerState, CurrentManifest, CurrentAppName);
     }
 
 }

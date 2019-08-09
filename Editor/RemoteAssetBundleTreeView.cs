@@ -67,7 +67,6 @@ namespace RemoteAssetBundleTools
         public RemoteAssetBundleTreeView(TreeViewState treeViewState, MultiColumnHeaderState header, RemoteAssetBundleManifest manifest, string AppName) : base(treeViewState, new MultiColumnHeader(header))
         {
             Manifest = manifest;
-
             rowHeight = 20;
             columnIndexForTreeFoldouts = 2;
             showAlternatingRowBackgrounds = true;
@@ -77,7 +76,7 @@ namespace RemoteAssetBundleTools
 
         protected override void RowGUI(RowGUIArgs args)
         {
-            for (int i = 0; i < args.GetNumVisibleColumns(); i++)
+            for (int i = 0; i < args.GetNumVisibleColumns(); ++i)
             {
                 CellGUI(args.GetCellRect(i), args.item as RemoteAssetBundleTreeViewItem, args.GetColumn(i), ref args);
             }
@@ -85,14 +84,11 @@ namespace RemoteAssetBundleTools
         // TODO switch to enum
         private void CellGUI(Rect cellRect, RemoteAssetBundleTreeViewItem item, int column, ref RowGUIArgs args)
         {
+            CenterRectUsingSingleLineHeight(ref cellRect);
             switch (column)
             {
                 case 0:
                     {
-                        if (args.selected)
-                        {
-                            Debug.Log("SELECTEZD");
-                        }
                         DefaultGUI.Label(cellRect, item.displayName, args.selected, args.focused);
                         break;
                     }
