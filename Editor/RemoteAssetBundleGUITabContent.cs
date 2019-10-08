@@ -189,7 +189,9 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
     public string AppName;
     public delegate void UploadRemoteAssetBundle(AssetBundleInfo bundleInfo, string appName, FCMMessage message);
     public event UploadRemoteAssetBundle OnUploadRemoteAssetBundle;
-    public RemoteAssetBundleGUIAddTab(string label) : base(label) { }
+    public RemoteAssetBundleGUIAddTab(string label) : base(label) {
+        UploadMessage = new FCMMessage(null, null, null);
+    }
 
     public override void Show()
     {
@@ -201,7 +203,10 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
         GUILayout.Space(TabLayoutPadding / 2);
         AppName = EditorGUILayout.TextField("App Name (optional)", AppName, DefaultTextFieldOptions);
         // TODO fix GUI layout for message
-        // UploadMessage = EditorGUILayout.TextField("Upload Message (optional)", UploadMessage, DefaultTextFieldOptions);
+        GUILayout.Label("Firebase Cloud Messaging (optional)");
+        UploadMessage.title = EditorGUILayout.TextField("Message Title", UploadMessage.title, DefaultTextFieldOptions);
+        UploadMessage.body = EditorGUILayout.TextField("Message Body", UploadMessage.body, DefaultTextFieldOptions);
+        UploadMessage.icon = EditorGUILayout.TextField("Notification Icon (Android)", UploadMessage.icon, DefaultTextFieldOptions);
         GUILayout.Space(TabLayoutPadding);
         UploadAssetBundleButton();
         GUILayout.Space(TabLayoutPadding);
