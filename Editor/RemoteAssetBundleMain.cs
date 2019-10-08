@@ -68,7 +68,7 @@ public class RemoteAssetBundleMain : EditorWindow
     }
 
     // Async Server Methods
-    public async void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, string message)
+    public async void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, FCMMessage message)
     {
         Object jwt = GUIConfigureTab.jwtFile;
         string endpoint = FormatEndpoint(UploadEndpoint);
@@ -77,12 +77,32 @@ public class RemoteAssetBundleMain : EditorWindow
             string jwtName = jwt ? jwt.name : null;
             try
             {
-                RemoteAssetBundle ab = await RemoteAssetBundleUtils.UploadAssetBundle(endpoint, assetBundleInfo, appName, message, jwtName);
-                GUIAddTab.AddMessage(string.Format("Successfully Uploaded Asset Bundle {0}", assetBundleInfo.Name), MessageStatus.Success);
+                RemoteAssetBundle ab = await RemoteAssetBundleUtils.UploadAssetBundle(endpoint, assetBundleInfo, message, appName, jwtName);
+                GUIAddTab.AddMessage(string.Format("Successfully Uploaded Asset Bundle {0}", assetBundleInfo.name), MessageStatus.Success);
             }
             catch (System.Exception ex)
             {
-                GUIAddTab.AddMessage(string.Format("Unable to upload Asset Bundle {0}. \n Reason: {1}", assetBundleInfo.Name, ex.Message), MessageStatus.Error);
+                GUIAddTab.AddMessage(string.Format("Unable to upload Asset Bundle {0}. \n Reason: {1}", assetBundleInfo.name, ex.Message), MessageStatus.Error);
+                throw;
+            }
+        }
+    }
+
+    public async void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName)
+    {
+        Object jwt = GUIConfigureTab.jwtFile;
+        string endpoint = FormatEndpoint(UploadEndpoint);
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            string jwtName = jwt ? jwt.name : null;
+            try
+            {
+                RemoteAssetBundle ab = await RemoteAssetBundleUtils.UploadAssetBundle(endpoint, assetBundleInfo, appName, jwtName);
+                GUIAddTab.AddMessage(string.Format("Successfully Uploaded Asset Bundle {0}", assetBundleInfo.name), MessageStatus.Success);
+            }
+            catch (System.Exception ex)
+            {
+                GUIAddTab.AddMessage(string.Format("Unable to upload Asset Bundle {0}. \n Reason: {1}", assetBundleInfo.name, ex.Message), MessageStatus.Error);
                 throw;
             }
         }

@@ -13,25 +13,25 @@
     public struct AssetBundleInfo {
 
         ///<summary> The name of the AssetBundle </summary>
-        public string Name; 
+        public string name; 
         ///<summary> The absolute path to the AssetBundle on disk </summary>
-        public string Path;
+        public string path;
 
-        public AssetBundleInfo(string name, string path) {
-            Name = name;
-            Path = path;
+        public AssetBundleInfo(string n, string p) {
+            name = n;
+            path = p;
         }
 
-        public AssetBundleInfo(string path)
+        public AssetBundleInfo(string p)
         {
-            FileInfo info = new FileInfo(path);
-            Name = info.Name;
-            Path = path;
+            FileInfo info = new FileInfo(p);
+            name = info.Name;
+            path = p;
         }
 
         ///<summary> Checks whether or not the AssetBundle exists on disk</summary>
         public bool Exists() {
-            return File.Exists(Path);
+            return File.Exists(path);
         }
 
         ///<summary>Loads the given AssetBundle located at <see cref="AssetBundleInfo.Path" />
@@ -40,9 +40,9 @@
         ///</summary>
         public AssetBundle Load() {
             if (Exists()) {
-                return AssetBundle.LoadFromFile(Path);
+                return AssetBundle.LoadFromFile(path);
             }
-            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", Name, Path));
+            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", name, path));
         }
         ///<summary>Asynchronously Loads the given AssetBundle located at <see cref="AssetBundleInfo.Path" />
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
@@ -51,12 +51,12 @@
         ///</summary>
         public async Task<AssetBundle> LoadAsync() {
             if (Exists()) {
-                string path = Path;
-                var bundleReq = Task.Run(() => AssetBundle.LoadFromFileAsync(path));
+                string p = path;
+                var bundleReq = Task.Run(() => AssetBundle.LoadFromFileAsync(p));
                 var result = await bundleReq;
                 return result.assetBundle;
             }
-            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", Name, Path));
+            throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", name, path));
         }
     }
 
@@ -66,26 +66,50 @@
     ///</summary>
     [System.Serializable]
     public struct RemoteAssetBundle {
-        public string VersionHash;
-        public string AppName;
-        public bool Verified;
-        public AssetBundleInfo Info;
+        public string versionHash;
+        public string appName;
+        public bool verified;
+        public AssetBundleInfo info;
 
         public Hash128 toHash128() {
-            return Hash128.Parse(VersionHash);
+            return Hash128.Parse(versionHash);
         }
+
         public static RemoteAssetBundle Deserialize(string val) {
             RemoteAssetBundle obj = JsonUtility.FromJson<RemoteAssetBundle>(val);
             return obj;
         }
     }
 
-    ///<summary>Manifest of all RemoteAssetBundles living on a server
-    ///<remarks>Uses Fields instead of Properties in order to work with <see cref="JsonUtility" /> </remarks>
-    ///</summary>
+    /// <summary>Simple struct to represent a Firebase Cloud Message.</summary>
+    [System.Serializable]
+    public struct FCMMessage {
+        public string title;
+        public string body;
+        public string icon;
+
+        public string Serialize()
+        {
+            return JsonUtility.ToJson(this);
+        }
+
+        public FCMMessage(string bodyVal, string titleVal, string iconVal)
+        {
+            title = titleVal;
+            body = bodyVal;
+            icon = iconVal;
+        } 
+        public static FCMMessage Deserialize(string val)
+        {
+            FCMMessage obj = JsonUtility.FromJson<FCMMessage>(val);
+            return obj;
+        }
+    }
+    /// <summary>Manifest of all RemoteAssetBundles living on a server </summary>
+    /// <remarks>Uses Fields instead of Properties in order to work with <see cref="JsonUtility" /> </remarks>
     [System.Serializable]
     public struct RemoteAssetBundleManifest {
-        public RemoteAssetBundle[] Bundles;
+        public RemoteAssetBundle[] bundles;
 
         public static RemoteAssetBundleManifest Deserialize(string val) {
             RemoteAssetBundleManifest obj = JsonUtility.FromJson<RemoteAssetBundleManifest>(val);

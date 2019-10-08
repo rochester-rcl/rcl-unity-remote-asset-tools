@@ -130,9 +130,9 @@ namespace RemoteAssetBundleTools
         {
             int id = 0;
             TreeViewItem root = new TreeViewItem { id = id, depth = -1, displayName = AppName };
-            foreach (RemoteAssetBundle bundle in Manifest.Bundles)
+            foreach (RemoteAssetBundle bundle in Manifest.bundles)
             {
-                var item = new RemoteAssetBundleTreeViewItem(bundle.Info.Name, 1, id, bundle.Verified, "A Date");
+                var item = new RemoteAssetBundleTreeViewItem(bundle.info.name, 1, id, bundle.verified, "A Date");
                 root.AddChild(item);
             }
             return root;

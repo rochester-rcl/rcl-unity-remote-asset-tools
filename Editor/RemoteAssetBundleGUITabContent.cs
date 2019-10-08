@@ -185,9 +185,9 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
 public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
 {
     public AssetBundleInfo ABInfo { get; set; }
-    public string UploadMessage;
+    public FCMMessage UploadMessage;
     public string AppName;
-    public delegate void UploadRemoteAssetBundle(AssetBundleInfo bundleInfo, string appName, string message);
+    public delegate void UploadRemoteAssetBundle(AssetBundleInfo bundleInfo, string appName, FCMMessage message);
     public event UploadRemoteAssetBundle OnUploadRemoteAssetBundle;
     public RemoteAssetBundleGUIAddTab(string label) : base(label) { }
 
@@ -200,7 +200,8 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
         OpenAssetBundleButton();
         GUILayout.Space(TabLayoutPadding / 2);
         AppName = EditorGUILayout.TextField("App Name (optional)", AppName, DefaultTextFieldOptions);
-        UploadMessage = EditorGUILayout.TextField("Upload Message (optional)", UploadMessage, DefaultTextFieldOptions);
+        // TODO fix GUI layout for message
+        // UploadMessage = EditorGUILayout.TextField("Upload Message (optional)", UploadMessage, DefaultTextFieldOptions);
         GUILayout.Space(TabLayoutPadding);
         UploadAssetBundleButton();
         GUILayout.Space(TabLayoutPadding);
@@ -227,7 +228,7 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
         if (!string.IsNullOrEmpty(abPath))
         {
             ABInfo = new AssetBundleInfo(abPath);
-            AddMessage(string.Format("Current AssetBundle is {0}", ABInfo.Name), MessageStatus.Success);
+            AddMessage(string.Format("Current AssetBundle is {0}", ABInfo.name), MessageStatus.Success);
         }
     }
 
@@ -291,9 +292,9 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     public void SetManifests(RemoteAssetBundleManifest manifest)
     {
         Manifests = manifest;
-        foreach (RemoteAssetBundle b in Manifests.Bundles)
+        foreach (RemoteAssetBundle b in Manifests.bundles)
         {
-            Apps.Add(b.AppName);
+            Apps.Add(b.appName);
         }
     }
 
@@ -335,7 +336,7 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     public void SelectCurrentManifest(string appName)
     {
         RemoteAssetBundleManifest manifest = new RemoteAssetBundleManifest();
-        manifest.Bundles = Manifests.Bundles.Where(ab => ab.AppName == appName).ToArray();
+        manifest.bundles = Manifests.bundles.Where(ab => ab.appName == appName).ToArray();
         CurrentManifest = manifest;
         CurrentAppName = appName;
         MultiColumnHeaderState headerState = RemoteAssetBundleTreeView.CreateDefaultMultiColumnHeaderState();

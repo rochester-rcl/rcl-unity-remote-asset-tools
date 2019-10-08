@@ -65,7 +65,7 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string appName = null, string message = null, string jwtName = null)
+        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, FCMMessage message, string appName = null, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
             using (HttpClient client = new HttpClient())
@@ -79,20 +79,53 @@
                         client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
                     }
                     MultipartFormDataContent formData = new MultipartFormDataContent();
-                    FileInfo f = new FileInfo(info.Path);
+                    FileInfo f = new FileInfo(info.path);
                     StreamContent fs = new StreamContent(f.OpenRead());
                     formData.Add(fs, "bundle", f.Name);
                     string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
                     formData.Add(new StringContent(app), "AppName");
-                    if (!string.IsNullOrEmpty(message))
-                    {
-                        formData.Add(new StringContent(message), "message");
-                    }
+                    formData.Add(new StringContent(message.Serialize()), "message");
                     return client.PostAsync(url, formData);
                 }
                 else
                 {
-                    throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.Name, info.Path));
+                    throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.name, info.path));
+                }
+            }
+        }
+
+        ///<summary>Uploads an AssetBundle to RESTful service
+        ///<param name="url">The absolute URL to the POST endpoint</param>
+        ///<param name="info">The AssetBundleInfo struct</param>
+        ///<param name="message">A message to be used on the server side</param>
+        ///<param name="jwtName">Optional name of a JSON Web Token (placed somewhere in Assets) that can be used for authentication</param>
+        ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
+        ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
+        ///</summary>
+        public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string appName = null, string jwtName = null)
+        {
+            bool useJWT = !string.IsNullOrEmpty(jwtName);
+            using (HttpClient client = new HttpClient())
+            {
+                if (info.Exists())
+                {
+                    if (useJWT)
+                    {
+                        string jwt = FindJWT(jwtName);
+                        if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
+                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+                    }
+                    MultipartFormDataContent formData = new MultipartFormDataContent();
+                    FileInfo f = new FileInfo(info.path);
+                    StreamContent fs = new StreamContent(f.OpenRead());
+                    formData.Add(fs, "bundle", f.Name);
+                    string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
+                    formData.Add(new StringContent(app), "AppName");
+                    return client.PostAsync(url, formData);
+                }
+                else
+                {
+                    throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.name, info.path));
                 }
             }
         }
@@ -116,7 +149,7 @@
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
                 }
                 StringContent content = new StringContent("{\"verified\":true}", Encoding.UTF8, "application/json");
-                string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.Info.Name), WebUtility.UrlEncode(bundle.VersionHash));
+                string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
                 return client.PutAsync(endpoint, content);
             }
         }
@@ -145,7 +178,7 @@
         {
             using (HttpClient client = new HttpClient())
             {
-                string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, WebUtility.UrlEncode(bundle.Info.Name), WebUtility.UrlEncode(bundle.VersionHash));
+                string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
                 return client.DeleteAsync(endpoint);
             }
         }
@@ -158,9 +191,16 @@
         ///<exception cref="FileNotFoundException">The AssetBundle is not found</exception>
         ///<returns>Returns a Task which returns a deserialized RemoteAssetBundle</returns>
         ///</summary>
-        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string appName = null, string message = null, string jwtName = null)
+        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, FCMMessage message, string appName = null, string jwtName = null)
         {
-            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, appName, message, jwtName);
+            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message, appName, jwtName);
+            string content = await response.Content.ReadAsStringAsync();
+            return RemoteAssetBundle.Deserialize(content);
+        }
+
+        public static async Task<RemoteAssetBundle> UploadAssetBundle(string url, AssetBundleInfo info, string appName = null, string jwtName = null)
+        {
+            HttpResponseMessage response = await UploadAssetBundleAsync(url, info, appName, jwtName);
             string content = await response.Content.ReadAsStringAsync();
             return RemoteAssetBundle.Deserialize(content);
         }
@@ -229,7 +269,6 @@
         {
             HttpResponseMessage response = await GetAssetBundleManifestAsync(url, appName, verified);
             string content = await response.Content.ReadAsStringAsync();
-            Debug.Log(content);
             return RemoteAssetBundleManifest.Deserialize(content);
         }
 
@@ -241,10 +280,10 @@
         ///</summary>
         public static IEnumerator DownloadAssetBundleAsync(string url, RemoteAssetBundle bundle, System.Action<string, AssetBundle> callback)
         {
-            string endpoint = string.Format("{0}/{1}?versionhash={2}", url, bundle.Info.Name, bundle.VersionHash);
+            string endpoint = string.Format("{0}/{1}?versionhash={2}", url, bundle.info.name, bundle.versionHash);
             CachedAssetBundle cachedBundle = new CachedAssetBundle();
             cachedBundle.hash = bundle.toHash128();
-            cachedBundle.name = bundle.Info.Name;
+            cachedBundle.name = bundle.info.name;
             using (UnityWebRequest req = UnityWebRequestAssetBundle.GetAssetBundle(endpoint, cachedBundle, 0))
             {
                 yield return req.SendWebRequest();

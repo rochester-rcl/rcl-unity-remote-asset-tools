@@ -91,14 +91,15 @@ namespace RemoteAssetBundleToolsTests
         {
             Debug.Log("Testing RemoteAssetBundleUtils.UploadAssetBundle");
             AssetBundleInfo info = new AssetBundleInfo(TestConstants.TEST_BUNDLE_NAME, TestConstants.TEST_BUNDLE_PATH);
-            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, null, "This is a test", TestConstants.JWT_TOKEN_NAME);
+            FCMMessage message = new FCMMessage("Test Upload", "This is a test", null);
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, message, null, TestConstants.JWT_TOKEN_NAME);
             while (!task.IsCompleted)
             {
                 yield return null;
             }
             bundle = task.Result;
             Assert.IsTrue(bundle.toHash128().isValid);
-            Assert.AreEqual(Application.productName, bundle.AppName);
+            Assert.AreEqual(Application.productName, bundle.appName);
         }
 
         [UnityTest, Order(4)]
@@ -112,8 +113,8 @@ namespace RemoteAssetBundleToolsTests
             }
             RemoteAssetBundleManifest content = task.Result;
             // Should at the very least be an empty array
-            Assert.AreNotEqual(content.Bundles, null);
-            Assert.AreEqual(content.Bundles.Length, 0);
+            Assert.AreNotEqual(content.bundles, null);
+            Assert.AreEqual(content.bundles.Length, 0);
             Debug.Log("Passed");
         }
 
@@ -129,7 +130,7 @@ namespace RemoteAssetBundleToolsTests
             }
             bundle = task.Result;
             Assert.IsTrue(bundle.toHash128().isValid);
-            Assert.IsTrue(bundle.Verified);
+            Assert.IsTrue(bundle.verified);
         }
 
         [UnityTest, Order(6)]
@@ -143,12 +144,13 @@ namespace RemoteAssetBundleToolsTests
             }
             RemoteAssetBundleManifest content = task.Result;
             // Should at the very least be an empty array
-            Assert.AreNotEqual(content.Bundles, null);
-            Assert.AreEqual(content.Bundles.Length, 1);
-            foreach (var _bundle in content.Bundles)
+            Debug.Log(content);
+            Assert.AreNotEqual(content.bundles, null);
+            Assert.AreEqual(content.bundles.Length, 1);
+            foreach (var _bundle in content.bundles)
             {
                 Assert.IsTrue(_bundle.toHash128().isValid);
-                Assert.AreEqual(_bundle.AppName, Application.productName);
+                Assert.AreEqual(_bundle.appName, Application.productName);
             }
             Debug.Log("Passed");
         }

@@ -37,9 +37,10 @@ namespace RemoteAssetBundleToolsTests
 
         public IEnumerator TestDownloadRemoteAssetBundle(System.Action<string, AssetBundle> callback)
         {
-            Debug.Log("Testing RenteAssetBundleUtils.DownloadAssetBundle");
+            Debug.Log("Testing RemoteAssetBundleUtils.DownloadAssetBundle");
             AssetBundleInfo info = new AssetBundleInfo(TestConstants.TEST_BUNDLE_NAME, TestConstants.TEST_BUNDLE_PATH);
-            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, null, TestConstants.JWT_TOKEN_NAME);
+            FCMMessage message = new FCMMessage("Test Upload", "This is a test", null);
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.UploadAssetBundle(TestConstants.TEST_SERVER_URL, info, message, null, TestConstants.JWT_TOKEN_NAME);
             while (!task.IsCompleted)
             {
                 yield return new WaitForFixedUpdate();
