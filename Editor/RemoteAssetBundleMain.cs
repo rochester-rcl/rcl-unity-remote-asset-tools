@@ -37,7 +37,7 @@ public class RemoteAssetBundleMain : EditorWindow
         });
         GUIConfigureTab.OnCheckEndpoint += OnCheckEndpoint;
         GUIConfigureTab.OnCheckJWT += OnCheckJWT;
-        GUIAddTab.OnUploadRemoteAssetBundle += OnUploadAssetBundle;
+        GUIAddTab.OnUploadRemoteAssetBundle += UploadAssetBundle;
         GUIEditTab.OnLoadManifests += OnLoadManifests;
     }
 
@@ -68,7 +68,7 @@ public class RemoteAssetBundleMain : EditorWindow
     }
 
     // Async Server Methods
-    public async void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, FCMMessage message)
+    public async void UploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, FCMMessage message)
     {
         Object jwt = GUIConfigureTab.jwtFile;
         string endpoint = FormatEndpoint(UploadEndpoint);
@@ -88,7 +88,7 @@ public class RemoteAssetBundleMain : EditorWindow
         }
     }
 
-    public async void OnUploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName)
+    public async void UploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName)
     {
         Object jwt = GUIConfigureTab.jwtFile;
         string endpoint = FormatEndpoint(UploadEndpoint);

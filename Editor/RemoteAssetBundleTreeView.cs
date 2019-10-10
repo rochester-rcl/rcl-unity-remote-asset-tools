@@ -13,7 +13,7 @@ namespace RemoteAssetBundleTools
         [SerializeField]
         public string date;
 
-        public RemoteAssetBundleTreeViewItem(string name, int depth, int id, bool isVerified, string uploadDate) : base(depth, id, name)
+        public RemoteAssetBundleTreeViewItem(string name, int depth, int id, bool isVerified, string uploadDate) : base(id, depth, name)
         {
             verified = isVerified;
             date = uploadDate;
@@ -24,6 +24,8 @@ namespace RemoteAssetBundleTools
     {
         public RemoteAssetBundleManifest Manifest { get; set; }
         public string AppName { get; set; }
+        public delegate void SelectBundleToEdit(RemoteAssetBundle bundle);
+        public static event SelectBundleToEdit OnSelectBundleToEdit;
         internal static MultiColumnHeaderState CreateDefaultMultiColumnHeaderState()
         {
             return new MultiColumnHeaderState(GetColumns());
@@ -81,7 +83,7 @@ namespace RemoteAssetBundleTools
                 CellGUI(args.GetCellRect(i), args.item as RemoteAssetBundleTreeViewItem, args.GetColumn(i), ref args);
             }
         }
-        // TODO switch to enum
+
         private void CellGUI(Rect cellRect, RemoteAssetBundleTreeViewItem item, int column, ref RowGUIArgs args)
         {
             CenterRectUsingSingleLineHeight(ref cellRect);
@@ -116,14 +118,12 @@ namespace RemoteAssetBundleTools
             }
         }
 
-        protected override void ContextClickedItem(int id)
+        protected override void SingleClickedItem(int id)
         {
-            Debug.Log(id);
-        }
-
-        protected override void DoubleClickedItem(int id)
-        {
-            Debug.Log(id);
+            if (OnSelectBundleToEdit != null)
+            {
+                OnSelectBundleToEdit(Manifest.bundles[id]);
+            }
         }
 
         protected override TreeViewItem BuildRoot()
@@ -132,7 +132,7 @@ namespace RemoteAssetBundleTools
             TreeViewItem root = new TreeViewItem { id = id, depth = -1, displayName = AppName };
             foreach (RemoteAssetBundle bundle in Manifest.bundles)
             {
-                var item = new RemoteAssetBundleTreeViewItem(bundle.info.name, 1, id, bundle.verified, "A Date");
+                var item = new RemoteAssetBundleTreeViewItem(bundle.info.name, 1, id++, bundle.verified, bundle.date);
                 root.AddChild(item);
             }
             return root;

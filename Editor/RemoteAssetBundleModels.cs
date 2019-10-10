@@ -69,6 +69,8 @@
         public string versionHash;
         public string appName;
         public bool verified;
+        /// <summary>The date the bundle was uploaded. For display purposes only.</summary>
+        public string date;
         public AssetBundleInfo info;
 
         public Hash128 toHash128() {
@@ -87,17 +89,19 @@
         public string title;
         public string body;
         public string icon;
+        public bool sendImmediate;
 
         public string Serialize()
         {
             return JsonUtility.ToJson(this);
         }
 
-        public FCMMessage(string bodyVal, string titleVal, string iconVal)
+        public FCMMessage(string bodyVal, string titleVal, string iconVal, bool immediate = false)
         {
             title = titleVal;
             body = bodyVal;
             icon = iconVal;
+            sendImmediate = immediate;
         } 
         public static FCMMessage Deserialize(string val)
         {

@@ -91,9 +91,7 @@ public abstract class RemoteAssetBundleGUITabContent
 
 public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
 {
-    [SerializeField]
     public string serverEndpoint;
-    [SerializeField]
     public Object jwtFile;
     public delegate void HandleCheckEndpoint(string endpoint);
     public delegate void HandleCheckJWT(string endpoint, Object jwt);
@@ -154,7 +152,7 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
         }
         GUILayout.EndHorizontal();
     }
-    // TODO should use a delegate / event for this and bubble up to Main instead
+
     public void CheckJWTButton()
     {
         GUILayout.BeginHorizontal();
@@ -189,10 +187,12 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
     public string AppName;
     public delegate void UploadRemoteAssetBundle(AssetBundleInfo bundleInfo, string appName, FCMMessage message);
     public event UploadRemoteAssetBundle OnUploadRemoteAssetBundle;
-    public RemoteAssetBundleGUIAddTab(string label) : base(label) {
+    public RemoteAssetBundleGUIAddTab(string label) : base(label)
+    {
         UploadMessage = new FCMMessage(null, null, null);
     }
-
+    private const string firebaseDocsUrl = "https://firebase.google.com";
+    private const string remoteABServerUrl = "https://github.com/rochester-rcl/rcl-unity-asset-server";
     public override void Show()
     {
         GUI.backgroundColor = DefaultColor;
@@ -202,11 +202,15 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
         OpenAssetBundleButton();
         GUILayout.Space(TabLayoutPadding / 2);
         AppName = EditorGUILayout.TextField("App Name (optional)", AppName, DefaultTextFieldOptions);
-        // TODO fix GUI layout for message
+        GUILayout.Space(TabLayoutPadding);
         GUILayout.Label("Firebase Cloud Messaging (optional)");
+        GUILayout.Space(TabLayoutPadding);
+        OpenFirebaseLinkButton();
+        GUILayout.Space(TabLayoutPadding);
         UploadMessage.title = EditorGUILayout.TextField("Message Title", UploadMessage.title, DefaultTextFieldOptions);
         UploadMessage.body = EditorGUILayout.TextField("Message Body", UploadMessage.body, DefaultTextFieldOptions);
         UploadMessage.icon = EditorGUILayout.TextField("Notification Icon (Android)", UploadMessage.icon, DefaultTextFieldOptions);
+        UploadMessage.sendImmediate = EditorGUILayout.Toggle("Send Immediately", UploadMessage.sendImmediate, DefaultTextFieldOptions);
         GUILayout.Space(TabLayoutPadding);
         UploadAssetBundleButton();
         GUILayout.Space(TabLayoutPadding);
@@ -222,6 +226,25 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
             if (GUILayout.Button("Open File", DefaultButtonOptions))
             {
                 OpenAssetBundleDialog();
+            }
+        }
+        GUILayout.EndHorizontal();
+    }
+
+    public void OpenFirebaseLinkButton()
+    {
+        EditorGUILayout.LabelField("Requires a Firebase Project to be properly configured on the server side.");
+        EditorGUILayout.LabelField("By default, the push notification is only sent once the bundle has been manually verified.");
+        EditorGUILayout.LabelField("If you wish to send it immediately after the bundle has been uploaded, select \"Send Immediately\".");
+        GUILayout.BeginHorizontal();
+        {
+            if (GUILayout.Button("Firebase Docs", DefaultButtonOptions))
+            {
+                Application.OpenURL(firebaseDocsUrl);
+            }
+            if (GUILayout.Button("Server Docs", DefaultButtonOptions))
+            {
+                Application.OpenURL(remoteABServerUrl);
             }
         }
         GUILayout.EndHorizontal();
@@ -265,10 +288,15 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     private Vector2 AppViewScrollPos;
     private Vector2 BundleViewScrollPos;
     private RemoteAssetBundleTreeView BundleTree;
+    private RemoteAssetBundle currentBundle;
+    private bool showBundleEditor = false;
     public delegate void HandleLoadManifests();
     public event HandleLoadManifests OnLoadManifests;
 
-    public RemoteAssetBundleGUIEditTab(string label) : base(label) { }
+    public RemoteAssetBundleGUIEditTab(string label) : base(label)
+    {
+        RemoteAssetBundleTreeView.OnSelectBundleToEdit += SelectBundleToEdit;
+    }
 
     public override void Show()
     {
@@ -294,6 +322,12 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
         }
     }
 
+    public void SelectBundleToEdit(RemoteAssetBundle bundle)
+    {
+        currentBundle = bundle;
+        showBundleEditor = true;
+    }
+
     public void SetManifests(RemoteAssetBundleManifest manifest)
     {
         Manifests = manifest;
@@ -311,6 +345,31 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             lastRect.x = lastRect.x + 20;
             lastRect.height = 300;
             BundleTree.OnGUI(lastRect);
+            GUILayout.Space(TabLayoutPadding);
+            GUILayout.BeginVertical();
+            {
+                RemoteAssetBundleEditor();
+            }
+            GUILayout.EndVertical();
+        }
+    }
+
+    public void RemoteAssetBundleEditor()
+    {
+        if (showBundleEditor)
+        {
+            GUILayout.Label("Update Remote Asset Bundle");
+            EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
+            GUILayout.Label(currentBundle.info.name);
+            string verifyLabel = currentBundle.verified ? "Revoke" : "Verify";
+            if (GUILayout.Button(verifyLabel, DefaultButtonOptions))
+            {
+                Debug.Log("Verified");
+            }
+            if (GUILayout.Button("Delete", DefaultButtonOptions))
+            {
+                Debug.Log("Deleted");
+            }
         }
     }
 

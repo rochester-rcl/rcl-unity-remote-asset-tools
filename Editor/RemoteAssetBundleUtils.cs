@@ -22,7 +22,6 @@
                 HttpResponseMessage res = await client.GetAsync(url);
                 return res.IsSuccessStatusCode;
             }
-
         }
 
         public static async Task<bool> CheckJWT(string url, string jwtName)
@@ -83,7 +82,7 @@
                     StreamContent fs = new StreamContent(f.OpenRead());
                     formData.Add(fs, "bundle", f.Name);
                     string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
-                    formData.Add(new StringContent(app), "AppName");
+                    formData.Add(new StringContent(app), "appName");
                     formData.Add(new StringContent(message.Serialize()), "message");
                     return client.PostAsync(url, formData);
                 }
@@ -120,7 +119,7 @@
                     StreamContent fs = new StreamContent(f.OpenRead());
                     formData.Add(fs, "bundle", f.Name);
                     string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
-                    formData.Add(new StringContent(app), "AppName");
+                    formData.Add(new StringContent(app), "appName");
                     return client.PostAsync(url, formData);
                 }
                 else
@@ -137,7 +136,7 @@
         ///<param name="jwtName">Optional name of a JSON Web Token (placed somewhere in Assets) that can be used for authentication</param>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> VerifyAssetBundleAsync(string url, RemoteAssetBundle bundle, string jwtName = null)
+        public static Task<HttpResponseMessage> VerifyAssetBundleAsync(string url, RemoteAssetBundle bundle, bool verifiedVal, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
             using (HttpClient client = new HttpClient())
@@ -148,7 +147,8 @@
                     if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
                 }
-                StringContent content = new StringContent("{\"verified\":true}", Encoding.UTF8, "application/json");
+                string verified = "{\"verified\":" + (verifiedVal ? "true" : "false") + "}";
+                StringContent content = new StringContent(verified, Encoding.UTF8, "application/json");
                 string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
                 return client.PutAsync(endpoint, content);
             }
@@ -161,9 +161,9 @@
         ///<param name="jwtName">Optional name of a JSON Web Token (placed somewhere in Assets) that can be used for authentication</param>
         ///<returns>Returns a Task which returns a deserialized RemoteAssetBundle</returns>
         ///</summary>
-        public static async Task<RemoteAssetBundle> VerifyAssetBundle(string url, RemoteAssetBundle bundle, string jwtName = null)
+        public static async Task<RemoteAssetBundle> VerifyAssetBundle(string url, RemoteAssetBundle bundle, bool verifiedVal, string jwtName = null)
         {
-            HttpResponseMessage response = await VerifyAssetBundleAsync(url, bundle, jwtName);
+            HttpResponseMessage response = await VerifyAssetBundleAsync(url, bundle, verifiedVal, jwtName);
             string content = await response.Content.ReadAsStringAsync();
             return RemoteAssetBundle.Deserialize(content);
         }

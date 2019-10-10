@@ -123,7 +123,7 @@ namespace RemoteAssetBundleToolsTests
         public IEnumerator VerifyUpdateAssetBundle()
         {
             Debug.Log("Testing RemoteAssetBundleUtils.VerifyAssetBundle");
-            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.VerifyAssetBundle(TestConstants.TEST_SERVER_URL, bundle, TestConstants.JWT_TOKEN_NAME);
+            Task<RemoteAssetBundle> task = RemoteAssetBundleUtils.VerifyAssetBundle(TestConstants.TEST_SERVER_URL, bundle, true, TestConstants.JWT_TOKEN_NAME);
             while (!task.IsCompleted)
             {
                 yield return null;
@@ -144,7 +144,6 @@ namespace RemoteAssetBundleToolsTests
             }
             RemoteAssetBundleManifest content = task.Result;
             // Should at the very least be an empty array
-            Debug.Log(content);
             Assert.AreNotEqual(content.bundles, null);
             Assert.AreEqual(content.bundles.Length, 1);
             foreach (var _bundle in content.bundles)
