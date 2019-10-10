@@ -32,6 +32,7 @@ public static class RemoteAssetBundleEditorPrefsKeys
 public abstract class RemoteAssetBundleGUITabContent
 {
     public string Label { get; set; }
+    public Rect parentPosition;
     protected Color DefaultColor = new Color(0.9f, 0.9f, 0.9f);
     protected int TabLayoutPadding = 20;
 
@@ -148,7 +149,6 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
             {
                 CheckEndpoint();
             }
-
         }
         GUILayout.EndHorizontal();
     }
@@ -215,7 +215,6 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
         UploadAssetBundleButton();
         GUILayout.Space(TabLayoutPadding);
         ShowMessages();
-
     }
 
     public void OpenAssetBundleButton()
@@ -311,6 +310,7 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             ManifestEditor();
         }
         GUILayout.EndHorizontal();
+        GUILayout.Space(TabLayoutPadding);
         ShowMessages();
     }
 
@@ -342,8 +342,8 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
         if (!string.IsNullOrEmpty(CurrentAppName))
         {
             Rect lastRect = GUILayoutUtility.GetLastRect();
-            lastRect.x = lastRect.x + 20;
-            lastRect.height = 300;
+            lastRect.x = lastRect.x + TabLayoutPadding;
+            lastRect.height = (parentPosition.height / 2) - TabLayoutPadding;
             BundleTree.OnGUI(lastRect);
             GUILayout.Space(TabLayoutPadding);
             GUILayout.BeginVertical();
@@ -362,6 +362,8 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
             GUILayout.Label(currentBundle.info.name);
             string verifyLabel = currentBundle.verified ? "Revoke" : "Verify";
+            GUILayout.Space(TabLayoutPadding);
+            // TODO hook all of these buttons up with their appropriate functions
             if (GUILayout.Button(verifyLabel, DefaultButtonOptions))
             {
                 Debug.Log("Verified");
@@ -369,6 +371,13 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             if (GUILayout.Button("Delete", DefaultButtonOptions))
             {
                 Debug.Log("Deleted");
+            }
+            GUILayout.Space(TabLayoutPadding);
+            GUILayout.Label("Send Push Notification");
+            GUILayout.Label("(Note: Push Notifications are Sent after Verification by Default, but can be Re-Sent Here.)");
+            if (GUILayout.Button("Send", DefaultButtonOptions))
+            {
+                Debug.Log("Sent");
             }
         }
     }

@@ -71,6 +71,10 @@
         public bool verified;
         /// <summary>The date the bundle was uploaded. For display purposes only.</summary>
         public string date;
+        /// <summary>
+        /// The message content associated with the bundle from when it was uploaded. For display purposes only.
+        /// </summary>
+        public string messageContent;
         public AssetBundleInfo info;
 
         public Hash128 toHash128() {

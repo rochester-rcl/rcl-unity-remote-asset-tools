@@ -44,6 +44,7 @@ public class RemoteAssetBundleMain : EditorWindow
     void OnGUI()
     {
         GUILayout.Label("Remote Asset Bundles", EditorStyles.boldLabel);
+        GUIEditTab.parentPosition = position;
         Tabs.ShowTabs();
     }
 

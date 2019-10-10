@@ -8,15 +8,16 @@ namespace RemoteAssetBundleTools
 {
     public class RemoteAssetBundleTreeViewItem : TreeViewItem
     {
-        [SerializeField]
-        public bool verified;
-        [SerializeField]
-        public string date;
 
-        public RemoteAssetBundleTreeViewItem(string name, int depth, int id, bool isVerified, string uploadDate) : base(id, depth, name)
+        public bool verified;
+        public string date;
+        public string messageContent;
+
+        public RemoteAssetBundleTreeViewItem(string name, int depth, int id, bool isVerified, string uploadDate, string message) : base(id, depth, name)
         {
             verified = isVerified;
             date = uploadDate;
+            messageContent = message;
         }
     }
 
@@ -36,13 +37,14 @@ namespace RemoteAssetBundleTools
             MultiColumnHeaderState.Column[] cols = new MultiColumnHeaderState.Column[] {
                 new MultiColumnHeaderState.Column(),
                 new MultiColumnHeaderState.Column(),
+                new MultiColumnHeaderState.Column(),
                 new MultiColumnHeaderState.Column()
             };
 
             cols[0].headerContent = new GUIContent("Name", "The Name of the Asset Bundle");
             cols[0].canSort = false;
             cols[0].minWidth = 50;
-            cols[0].width = 100;
+            cols[0].width = 150;
             cols[0].maxWidth = 300;
             cols[0].headerTextAlignment = TextAlignment.Left;
             cols[0].autoResize = true;
@@ -62,6 +64,14 @@ namespace RemoteAssetBundleTools
             cols[2].maxWidth = 300;
             cols[2].headerTextAlignment = TextAlignment.Left;
             cols[2].autoResize = true;
+
+            cols[3].headerContent = new GUIContent("Message Content", "The Push Notification Uploaded with the Bundle");
+            cols[3].canSort = false;
+            cols[3].minWidth = 100;
+            cols[3].width = 150;
+            cols[3].maxWidth = 500;
+            cols[3].headerTextAlignment = TextAlignment.Left;
+            cols[3].autoResize = true;
 
             return cols;
         }
@@ -106,6 +116,11 @@ namespace RemoteAssetBundleTools
                         DefaultGUI.Label(cellRect, item.verified.ToString(), args.selected, args.focused);
                         break;
                     }
+                case 3:
+                    {
+                        DefaultGUI.Label(cellRect, item.messageContent, args.selected, args.focused);
+                        break;
+                    }
             }
         }
 
@@ -132,7 +147,7 @@ namespace RemoteAssetBundleTools
             TreeViewItem root = new TreeViewItem { id = id, depth = -1, displayName = AppName };
             foreach (RemoteAssetBundle bundle in Manifest.bundles)
             {
-                var item = new RemoteAssetBundleTreeViewItem(bundle.info.name, 1, id++, bundle.verified, bundle.date);
+                var item = new RemoteAssetBundleTreeViewItem(bundle.info.name, 1, id++, bundle.verified, bundle.date, bundle.messageContent);
                 root.AddChild(item);
             }
             return root;

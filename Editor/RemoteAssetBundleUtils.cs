@@ -250,9 +250,7 @@
         ///</summary>
         public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url, string appName = null, bool verified = true)
         {
-            // TODO need to find a safer way to build these URIs
-
-            string endpoint = string.Format("{0}?verified={1}", url, WebUtility.UrlEncode(verified.ToString()));
+            string endpoint = string.Format("{0}?verified={1}", url, WebUtility.UrlEncode(verified ? "true" : "false"));
             if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appname={0}", WebUtility.UrlEncode(appName));
             using (HttpClient client = new HttpClient())
             {
