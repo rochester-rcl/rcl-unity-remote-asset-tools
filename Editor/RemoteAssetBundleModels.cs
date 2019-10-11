@@ -65,7 +65,7 @@
     ///<remarks>Uses Fields instead of Properties in order to work with <see cref="JsonUtility" /> </remarks>
     ///</summary>
     [System.Serializable]
-    public struct RemoteAssetBundle {
+    public class RemoteAssetBundle {
         public string versionHash;
         public string appName;
         public bool verified;
@@ -110,6 +110,17 @@
         public static FCMMessage Deserialize(string val)
         {
             FCMMessage obj = JsonUtility.FromJson<FCMMessage>(val);
+            return obj;
+        }
+    }
+
+    public struct FCMMessageStatus {
+        public bool sendStatus;
+        public string statusMessage;
+
+        public static FCMMessageStatus Deserialize(string val)
+        {
+            FCMMessageStatus obj = JsonUtility.FromJson<FCMMessageStatus>(val);
             return obj;
         }
     }

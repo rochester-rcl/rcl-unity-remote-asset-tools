@@ -56,6 +56,13 @@
             return System.IO.File.ReadAllText(AssetDatabase.GUIDToAssetPath(assets[0]), System.Text.Encoding.UTF8);
         }
 
+        private static System.Net.Http.Headers.AuthenticationHeaderValue GenerateAuthHeaderFromJWT(string jwtName)
+        {
+            string jwt = FindJWT(jwtName);
+            if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
+            return new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+        }
+
         ///<summary>Uploads an AssetBundle to RESTful service
         ///<param name="url">The absolute URL to the POST endpoint</param>
         ///<param name="info">The AssetBundleInfo struct</param>
@@ -73,9 +80,7 @@
                 {
                     if (useJWT)
                     {
-                        string jwt = FindJWT(jwtName);
-                        if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
-                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+                        client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                     }
                     MultipartFormDataContent formData = new MultipartFormDataContent();
                     FileInfo f = new FileInfo(info.path);
@@ -110,9 +115,7 @@
                 {
                     if (useJWT)
                     {
-                        string jwt = FindJWT(jwtName);
-                        if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
-                        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+                        client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                     }
                     MultipartFormDataContent formData = new MultipartFormDataContent();
                     FileInfo f = new FileInfo(info.path);
@@ -143,9 +146,7 @@
             {
                 if (useJWT)
                 {
-                    string jwt = FindJWT(jwtName);
-                    if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                 }
                 string verified = "{\"verified\":" + (verifiedVal ? "true" : "false") + "}";
                 StringContent content = new StringContent(verified, Encoding.UTF8, "application/json");
@@ -168,16 +169,20 @@
             return RemoteAssetBundle.Deserialize(content);
         }
 
-
         ///<summary>Deletes an AssetBundle from a RESTful service
         ///<param name="url">The absolute URL to the POST endpoint</param>
         ///<param name="bundle">The RemoteAssetBundle struct</param>
         ///<returns>Returns a Task so can be used with await or ContinueWith</returns>
         ///</summary>
-        public static Task<HttpResponseMessage> DeleteAssetBundleAsync(string url, RemoteAssetBundle bundle)
+        public static Task<HttpResponseMessage> DeleteAssetBundleAsync(string url, RemoteAssetBundle bundle, string jwtName = null)
         {
+            bool useJWT = !string.IsNullOrEmpty(jwtName);
             using (HttpClient client = new HttpClient())
             {
+                if (useJWT)
+                {
+                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
+                }
                 string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
                 return client.DeleteAsync(endpoint);
             }
@@ -210,10 +215,31 @@
         ///<param name="bundle">The RemoteAssetBundle struct</param>
         ///<returns>Returns the status code of the <see cref="HttpResponseMessage" /></returns>
         ///</summary>
-        public static async Task<HttpStatusCode> DeleteAssetBundle(string url, RemoteAssetBundle bundle)
+        public static async Task<HttpStatusCode> DeleteAssetBundle(string url, RemoteAssetBundle bundle, string jwtName = null)
         {
-            HttpResponseMessage response = await DeleteAssetBundleAsync(url, bundle);
+            HttpResponseMessage response = await DeleteAssetBundleAsync(url, bundle, jwtName);
             return response.StatusCode;
+        }
+
+        public static Task<HttpResponseMessage> SendBundleMessageAsync(string url, RemoteAssetBundle bundle, string jwtName = null)
+        {
+            bool useJWT = !string.IsNullOrEmpty(jwtName);
+            using (HttpClient client = new HttpClient())
+            {
+                if (useJWT)
+                {
+                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
+                }
+                string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+                return client.PostAsync(endpoint, null);
+            }
+        }
+
+        public static async Task<FCMMessageStatus> SendBundleMessage(string url, RemoteAssetBundle bundle, string jwtName = null)
+        {
+            HttpResponseMessage response = await SendBundleMessageAsync(url, bundle, jwtName);
+            string content = await response.Content.ReadAsStringAsync();
+            return FCMMessageStatus.Deserialize(content);
         }
 #endif
         ///<summary>Searches a directory for a given AssetBundle
@@ -251,7 +277,7 @@
         public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url, string appName = null, bool verified = true)
         {
             string endpoint = string.Format("{0}?verified={1}", url, WebUtility.UrlEncode(verified ? "true" : "false"));
-            if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appname={0}", WebUtility.UrlEncode(appName));
+            if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appName={0}", WebUtility.UrlEncode(appName));
             using (HttpClient client = new HttpClient())
             {
                 return client.GetAsync(endpoint);

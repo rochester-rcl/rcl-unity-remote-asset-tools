@@ -5,7 +5,7 @@ using UnityEditor;
 using UnityEditor.IMGUI.Controls;
 using RemoteAssetBundleTools;
 using System.Linq;
-
+using System.Threading.Tasks;
 #if UNITY_EDITOR
 public enum MessageStatus { Success, Error };
 
@@ -288,9 +288,16 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     private Vector2 BundleViewScrollPos;
     private RemoteAssetBundleTreeView BundleTree;
     private RemoteAssetBundle currentBundle;
-    private bool showBundleEditor = false;
     public delegate void HandleLoadManifests();
+    public delegate Task HandleLoadManifestsAwaitable();
+    public delegate void HandleDeleteRemoteBundle(RemoteAssetBundle bundle);
+    public delegate void HandleUpdateRemoteBundleVerification(RemoteAssetBundle bundle, bool verified);
+    public delegate void HandleSendRemoteBundleMessage(RemoteAssetBundle bundle);
     public event HandleLoadManifests OnLoadManifests;
+    public event HandleLoadManifestsAwaitable OnLoadManifestsAwaitable;
+    public event HandleDeleteRemoteBundle OnDeleteRemoteBundle;
+    public event HandleUpdateRemoteBundleVerification OnUpdateRemoteBundleVerification;
+    public event HandleSendRemoteBundleMessage OnSendRemoteBundleMessage;
 
     public RemoteAssetBundleGUIEditTab(string label) : base(label)
     {
@@ -320,17 +327,23 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
         {
             OnLoadManifests();
         }
+
+        if (OnLoadManifestsAwaitable != null)
+        {
+            OnLoadManifestsAwaitable();
+        }
     }
 
     public void SelectBundleToEdit(RemoteAssetBundle bundle)
     {
         currentBundle = bundle;
-        showBundleEditor = true;
     }
 
     public void SetManifests(RemoteAssetBundleManifest manifest)
     {
         Manifests = manifest;
+        currentBundle = null;
+        Apps = new HashSet<string>();
         foreach (RemoteAssetBundle b in Manifests.bundles)
         {
             Apps.Add(b.appName);
@@ -352,11 +365,15 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             }
             GUILayout.EndVertical();
         }
+        else
+        {
+            GUILayout.Label("Click \"Load\" to Load All Apps and Select an App to Begin Editing Remote Asset Bundles");
+        }
     }
 
     public void RemoteAssetBundleEditor()
     {
-        if (showBundleEditor)
+        if (currentBundle != null)
         {
             GUILayout.Label("Update Remote Asset Bundle");
             EditorGUILayout.LabelField("", GUI.skin.horizontalSlider);
@@ -366,18 +383,27 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             // TODO hook all of these buttons up with their appropriate functions
             if (GUILayout.Button(verifyLabel, DefaultButtonOptions))
             {
-                Debug.Log("Verified");
+                if (OnUpdateRemoteBundleVerification != null)
+                {
+                    OnUpdateRemoteBundleVerification(currentBundle, !currentBundle.verified);
+                }
             }
             if (GUILayout.Button("Delete", DefaultButtonOptions))
             {
-                Debug.Log("Deleted");
+                if (OnDeleteRemoteBundle != null)
+                {
+                    OnDeleteRemoteBundle(currentBundle);
+                }
             }
             GUILayout.Space(TabLayoutPadding);
             GUILayout.Label("Send Push Notification");
             GUILayout.Label("(Note: Push Notifications are Sent after Verification by Default, but can be Re-Sent Here.)");
             if (GUILayout.Button("Send", DefaultButtonOptions))
             {
-                Debug.Log("Sent");
+                if (OnSendRemoteBundleMessage != null)
+                {
+                    OnSendRemoteBundleMessage(currentBundle);
+                }
             }
         }
     }
@@ -410,6 +436,11 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     {
         RemoteAssetBundleManifest manifest = new RemoteAssetBundleManifest();
         manifest.bundles = Manifests.bundles.Where(ab => ab.appName == appName).ToArray();
+        if (manifest.bundles.Length == 0)
+        {
+            CurrentAppName = null;
+            return;
+        }
         CurrentManifest = manifest;
         CurrentAppName = appName;
         MultiColumnHeaderState headerState = RemoteAssetBundleTreeView.CreateDefaultMultiColumnHeaderState();

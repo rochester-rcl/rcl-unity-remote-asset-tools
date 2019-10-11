@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using System.Net;
 using RemoteAssetBundleTools;
-
+using System.Threading.Tasks;
 #if UNITY_EDITOR
 public class RemoteAssetBundleMain : EditorWindow
 {
@@ -15,7 +16,8 @@ public class RemoteAssetBundleMain : EditorWindow
     private RemoteAssetBundleGUIAddTab GUIAddTab { get; set; }
     private RemoteAssetBundleGUIEditTab GUIEditTab { get; set; }
 
-    private const string UploadEndpoint = "/bundles/";
+    private const string uploadEndpoint = "/bundles";
+    private const string messageEndpoint = "/messages";
 
     [MenuItem("Window/General/Remote Asset Bundles")]
     static void Init()
@@ -38,7 +40,9 @@ public class RemoteAssetBundleMain : EditorWindow
         GUIConfigureTab.OnCheckEndpoint += OnCheckEndpoint;
         GUIConfigureTab.OnCheckJWT += OnCheckJWT;
         GUIAddTab.OnUploadRemoteAssetBundle += UploadAssetBundle;
-        GUIEditTab.OnLoadManifests += OnLoadManifests;
+        GUIEditTab.OnLoadManifestsAwaitable += OnLoadManifests;
+        GUIEditTab.OnUpdateRemoteBundleVerification += VerifyRemoteAssetBundle;
+        GUIEditTab.OnDeleteRemoteBundle += DeleteRemoteAssetBundle;
     }
 
     void OnGUI()
@@ -72,17 +76,20 @@ public class RemoteAssetBundleMain : EditorWindow
     public async void UploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName, FCMMessage message)
     {
         Object jwt = GUIConfigureTab.jwtFile;
-        string endpoint = FormatEndpoint(UploadEndpoint);
+        string endpoint = FormatEndpoint(uploadEndpoint);
         if (!string.IsNullOrEmpty(endpoint))
         {
             string jwtName = jwt ? jwt.name : null;
             try
             {
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", string.Format("Uploading Asset Bundle {0} from {1}", assetBundleInfo.name, appName), 1.0f);
                 RemoteAssetBundle ab = await RemoteAssetBundleUtils.UploadAssetBundle(endpoint, assetBundleInfo, message, appName, jwtName);
                 GUIAddTab.AddMessage(string.Format("Successfully Uploaded Asset Bundle {0}", assetBundleInfo.name), MessageStatus.Success);
+                EditorUtility.ClearProgressBar();
             }
             catch (System.Exception ex)
             {
+                EditorUtility.ClearProgressBar();
                 GUIAddTab.AddMessage(string.Format("Unable to upload Asset Bundle {0}. \n Reason: {1}", assetBundleInfo.name, ex.Message), MessageStatus.Error);
                 throw;
             }
@@ -92,18 +99,104 @@ public class RemoteAssetBundleMain : EditorWindow
     public async void UploadAssetBundle(AssetBundleInfo assetBundleInfo, string appName)
     {
         Object jwt = GUIConfigureTab.jwtFile;
-        string endpoint = FormatEndpoint(UploadEndpoint);
+        string endpoint = FormatEndpoint(uploadEndpoint);
         if (!string.IsNullOrEmpty(endpoint))
         {
             string jwtName = jwt ? jwt.name : null;
             try
             {
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", string.Format("Uploading Asset Bundle {0} from {1}", assetBundleInfo.name, appName), 1.0f);
                 RemoteAssetBundle ab = await RemoteAssetBundleUtils.UploadAssetBundle(endpoint, assetBundleInfo, appName, jwtName);
                 GUIAddTab.AddMessage(string.Format("Successfully Uploaded Asset Bundle {0}", assetBundleInfo.name), MessageStatus.Success);
+                EditorUtility.ClearProgressBar();
             }
             catch (System.Exception ex)
             {
+                EditorUtility.ClearProgressBar();
                 GUIAddTab.AddMessage(string.Format("Unable to upload Asset Bundle {0}. \n Reason: {1}", assetBundleInfo.name, ex.Message), MessageStatus.Error);
+                throw;
+            }
+        }
+    }
+
+    public async void DeleteRemoteAssetBundle(RemoteAssetBundle bundle)
+    {
+        Object jwt = GUIConfigureTab.jwtFile;
+        string endpoint = FormatEndpoint(uploadEndpoint);
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            string jwtName = jwt ? jwt.name : null;
+            try
+            {
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", string.Format("Deleting Asset Bundle {0} from {1}", bundle.info.name, bundle.appName), 1.0f);
+                HttpStatusCode status = await RemoteAssetBundleUtils.DeleteAssetBundle(endpoint, bundle, jwtName);
+                GUIEditTab.AddMessage(string.Format("Successfully Deleted Asset Bundle {0} from app {1}", bundle.info.name, bundle.appName), MessageStatus.Success);
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", "The content of the manifest has changed - refreshing now ...", 1.0f);
+                await OnLoadManifests();
+                GUIEditTab.SelectCurrentManifest(bundle.appName);
+                EditorUtility.ClearProgressBar();
+            }
+            catch (System.Exception ex)
+            {
+                EditorUtility.ClearProgressBar();
+                GUIEditTab.AddMessage(string.Format("Unable to delete Asset Bundle {0} from app {1}. \n Reason: {2}", bundle.info.name, bundle.appName, ex.Message), MessageStatus.Error);
+                throw;
+            }
+        }
+    }
+
+    public async void SendRemoteAssetBundleMessage(RemoteAssetBundle bundle)
+    {
+        Object jwt = GUIConfigureTab.jwtFile;
+        string endpoint = FormatEndpoint(messageEndpoint);
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            string jwtName = jwt ? jwt.name : null;
+            try
+            {
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", string.Format("Sending Message for Asset Bundle {0} from {1}", bundle.info.name, bundle.appName), 1.0f);
+                FCMMessageStatus message = await RemoteAssetBundleUtils.SendBundleMessage(endpoint, bundle, jwtName);
+                if (message.sendStatus)
+                {
+                    GUIEditTab.AddMessage(string.Format("Successfully Sent Message {0} for Asset Bundle {1} from {2}.", message.statusMessage, bundle.info.name, bundle.appName), MessageStatus.Success);
+                }
+                else 
+                {
+                    GUIEditTab.AddMessage(string.Format("Unable to Send Message for Asset Bundle {1} from {2}. \n Reason: {1}", bundle.info.name, bundle.appName, message.statusMessage), MessageStatus.Error);
+                }
+
+                EditorUtility.ClearProgressBar();
+            }
+            catch (System.Exception ex)
+            {
+                EditorUtility.ClearProgressBar();
+                GUIEditTab.AddMessage(string.Format("Unable to Send Message for Asset Bundle {1} from {2}. \n Reason: {1}", bundle.info.name, bundle.appName, ex.Message), MessageStatus.Error);
+                throw;
+            }
+        }
+    }
+
+    public async void VerifyRemoteAssetBundle(RemoteAssetBundle bundle, bool verified)
+    {
+        Object jwt = GUIConfigureTab.jwtFile;
+        string endpoint = FormatEndpoint(uploadEndpoint);
+        if (!string.IsNullOrEmpty(endpoint))
+        {
+            string jwtName = jwt ? jwt.name : null;
+            try
+            {
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", string.Format("Updating Asset Bundle {0} from {1}", bundle.info.name, bundle.appName), 1.0f);
+                RemoteAssetBundle newBundle = await RemoteAssetBundleUtils.VerifyAssetBundle(endpoint, bundle, verified, jwtName);
+                GUIEditTab.AddMessage(string.Format("Successfully Updated Asset Bundle {0} from app {1}", bundle.info.name, bundle.appName), MessageStatus.Success);
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", "The content of the manifest has changed - refreshing now ...", 1.0f);
+                await OnLoadManifests();
+                GUIEditTab.SelectCurrentManifest(bundle.appName);
+                EditorUtility.ClearProgressBar();
+            }
+            catch (System.Exception ex)
+            {
+                EditorUtility.ClearProgressBar();
+                GUIEditTab.AddMessage(string.Format("Unable to update Asset Bundle {0} from app {1}. \n Reason: {2}", bundle.info.name, bundle.appName, ex.Message), MessageStatus.Error);
                 throw;
             }
         }
@@ -151,19 +244,21 @@ public class RemoteAssetBundleMain : EditorWindow
         }
     }
 
-    public async void OnLoadManifests()
+    public async Task OnLoadManifests()
     {
-        string endpoint = FormatEndpoint(UploadEndpoint);
+        string endpoint = FormatEndpoint(uploadEndpoint);
         if (!string.IsNullOrEmpty(endpoint))
         {
             try
             {
+                EditorUtility.DisplayProgressBar("Remote Asset Bundles", "Loading All Manifests", 1.0f);
                 RemoteAssetBundleManifest manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(endpoint, null, false);
                 GUIEditTab.SetManifests(manifest);
+                EditorUtility.ClearProgressBar();
             }
             catch (System.Exception ex)
             {
-
+                EditorUtility.ClearProgressBar();
                 GUIEditTab.AddMessage(string.Format("Unable to Load Manifests. Have you Uploaded any Asset Bundles? Info: {0}", ex.Message), MessageStatus.Error);
                 throw;
             }
