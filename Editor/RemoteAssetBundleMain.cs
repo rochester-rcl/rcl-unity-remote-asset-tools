@@ -43,6 +43,7 @@ public class RemoteAssetBundleMain : EditorWindow
         GUIEditTab.OnLoadManifestsAwaitable += OnLoadManifests;
         GUIEditTab.OnUpdateRemoteBundleVerification += VerifyRemoteAssetBundle;
         GUIEditTab.OnDeleteRemoteBundle += DeleteRemoteAssetBundle;
+        GUIEditTab.OnSendRemoteBundleMessage += SendRemoteAssetBundleMessage;
     }
 
     void OnGUI()
@@ -158,7 +159,7 @@ public class RemoteAssetBundleMain : EditorWindow
                 FCMMessageStatus message = await RemoteAssetBundleUtils.SendBundleMessage(endpoint, bundle, jwtName);
                 if (message.sendStatus)
                 {
-                    GUIEditTab.AddMessage(string.Format("Successfully Sent Message {0} for Asset Bundle {1} from {2}.", message.statusMessage, bundle.info.name, bundle.appName), MessageStatus.Success);
+                    GUIEditTab.AddMessage(string.Format("Successfully Sent Message for Asset Bundle {0} from {1}. \n Reason: {2}", bundle.info.name, bundle.appName, message.statusMessage), MessageStatus.Success);
                 }
                 else 
                 {
@@ -251,7 +252,7 @@ public class RemoteAssetBundleMain : EditorWindow
         {
             try
             {
-                EditorUtility.DisplayProgressBar("Remote Asset Bundles", "Loading All Manifests", 1.0f);
+                EditorUtility.DisplayCancelableProgressBar("Remote Asset Bundles", "Loading All Manifests", 1.0f);
                 RemoteAssetBundleManifest manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(endpoint, null, false);
                 GUIEditTab.SetManifests(manifest);
                 EditorUtility.ClearProgressBar();

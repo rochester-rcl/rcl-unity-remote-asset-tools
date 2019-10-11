@@ -11,7 +11,6 @@
     using System.Net.Http;
     using System.Net;
     using System.Threading.Tasks;
-
     public static class RemoteAssetBundleUtils
     {
 #if UNITY_EDITOR
@@ -88,7 +87,11 @@
                     formData.Add(fs, "bundle", f.Name);
                     string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
                     formData.Add(new StringContent(app), "appName");
-                    formData.Add(new StringContent(message.Serialize()), "message");
+                    if (message.IsValid())
+                    {
+                        formData.Add(new StringContent(message.Serialize()), "message");
+                    }
+                    
                     return client.PostAsync(url, formData);
                 }
                 else
@@ -183,7 +186,7 @@
                 {
                     client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                 }
-                string endpoint = string.Format("{0}?name={1}&versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+                string endpoint = string.Format("{0}?name={1}&versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
                 return client.DeleteAsync(endpoint);
             }
         }
@@ -230,7 +233,7 @@
                 {
                     client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                 }
-                string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+                string endpoint = string.Format("{0}/{1}?versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
                 return client.PostAsync(endpoint, null);
             }
         }

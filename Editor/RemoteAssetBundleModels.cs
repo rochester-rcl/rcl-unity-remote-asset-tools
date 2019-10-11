@@ -106,7 +106,15 @@
             body = bodyVal;
             icon = iconVal;
             sendImmediate = immediate;
-        } 
+        }
+
+        public bool IsValid()
+        {
+            if (string.IsNullOrEmpty(title)) return false;
+            if (string.IsNullOrEmpty(body)) return false;
+            return true;
+        }
+         
         public static FCMMessage Deserialize(string val)
         {
             FCMMessage obj = JsonUtility.FromJson<FCMMessage>(val);
