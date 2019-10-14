@@ -42,6 +42,8 @@ public abstract class RemoteAssetBundleGUITabContent
     protected GUILayoutOption[] DefaultButtonOptions = { GUILayout.MaxWidth(85f) };
     protected GUIStyle MessageStyle = new GUIStyle(EditorStyles.label);
     protected GUIStyle ScrollViewStyle = new GUIStyle(EditorStyles.textArea);
+    protected GUIStyle contentBox = new GUIStyle(EditorStyles.helpBox);
+    protected RectOffset contentPadding = new RectOffset(20, 20, 20, 20);
     protected Color ErrorColor = new Color(1.0f, 0.0f, 0.0f);
     protected Color SuccessColor = new Color(0.2f, 0.2f, 0.2f);
     protected Vector2 MessageScrollPos;
@@ -50,6 +52,8 @@ public abstract class RemoteAssetBundleGUITabContent
     {
         Label = label;
         RemoteAssetBundleMain.OnParentDisabled += OnParentDisabled;
+        RectOffset offset =
+        contentBox.padding = contentPadding;
     }
     public virtual void Show()
     {
@@ -111,15 +115,18 @@ public class RemoteAssetBundleGUIConfigureTab : RemoteAssetBundleGUITabContent
     public override void Show()
     {
         GUI.backgroundColor = DefaultColor;
-        GUILayout.Space(TabLayoutPadding);
-        GUILayout.Label(Label);
-        GUILayout.Space(TabLayoutPadding / 2);
-        serverEndpoint = EditorGUILayout.TextField("Server URL", serverEndpoint, DefaultTextFieldOptions);
-        jwtFile = EditorGUILayout.ObjectField("JWT Auth File", jwtFile, typeof(TextAsset), false, DefaultTextFieldOptions);
-        GUILayout.Space(TabLayoutPadding);
-        CheckEndpointButton();
-        GUILayout.Space(TabLayoutPadding / 4);
-        CheckJWTButton();
+        GUILayout.BeginVertical(contentBox);
+        {
+            GUILayout.Label(Label, EditorStyles.boldLabel);
+            GUILayout.Space(TabLayoutPadding / 2);
+            serverEndpoint = EditorGUILayout.TextField("Server URL", serverEndpoint, DefaultTextFieldOptions);
+            jwtFile = EditorGUILayout.ObjectField("JWT Auth File", jwtFile, typeof(TextAsset), false, DefaultTextFieldOptions);
+            GUILayout.Space(TabLayoutPadding);
+            CheckEndpointButton();
+            GUILayout.Space(TabLayoutPadding / 4);
+            CheckJWTButton();
+        }
+        GUILayout.EndVertical();
         GUILayout.Space(TabLayoutPadding);
         ShowMessages();
     }
@@ -196,23 +203,27 @@ public class RemoteAssetBundleGUIAddTab : RemoteAssetBundleGUITabContent
     public override void Show()
     {
         GUI.backgroundColor = DefaultColor;
-        GUILayout.Space(TabLayoutPadding);
-        GUILayout.Label(Label);
-        GUILayout.Space(TabLayoutPadding);
-        OpenAssetBundleButton();
-        GUILayout.Space(TabLayoutPadding / 2);
-        AppName = EditorGUILayout.TextField("App Name (optional)", AppName, DefaultTextFieldOptions);
-        GUILayout.Space(TabLayoutPadding);
-        GUILayout.Label("Firebase Cloud Messaging (optional)");
-        GUILayout.Space(TabLayoutPadding);
-        OpenFirebaseLinkButton();
-        GUILayout.Space(TabLayoutPadding);
-        UploadMessage.title = EditorGUILayout.TextField("Message Title", UploadMessage.title, DefaultTextFieldOptions);
-        UploadMessage.body = EditorGUILayout.TextField("Message Body", UploadMessage.body, DefaultTextFieldOptions);
-        UploadMessage.icon = EditorGUILayout.TextField("Notification Icon (Android)", UploadMessage.icon, DefaultTextFieldOptions);
-        UploadMessage.sendImmediate = EditorGUILayout.Toggle("Send Immediately", UploadMessage.sendImmediate, DefaultTextFieldOptions);
-        GUILayout.Space(TabLayoutPadding);
-        UploadAssetBundleButton();
+        GUILayout.BeginVertical(contentBox);
+        {
+            GUI.backgroundColor = DefaultColor;
+            GUILayout.Label(Label, EditorStyles.boldLabel);
+            GUILayout.Space(TabLayoutPadding);
+            OpenAssetBundleButton();
+            GUILayout.Space(TabLayoutPadding / 2);
+            AppName = EditorGUILayout.TextField("App Name (optional)", AppName, DefaultTextFieldOptions);
+            GUILayout.Space(TabLayoutPadding);
+            GUILayout.Label("Firebase Cloud Messaging (optional)");
+            GUILayout.Space(TabLayoutPadding);
+            OpenFirebaseLinkButton();
+            GUILayout.Space(TabLayoutPadding);
+            UploadMessage.title = EditorGUILayout.TextField("Message Title", UploadMessage.title, DefaultTextFieldOptions);
+            UploadMessage.body = EditorGUILayout.TextField("Message Body", UploadMessage.body, DefaultTextFieldOptions);
+            UploadMessage.icon = EditorGUILayout.TextField("Notification Icon (Android)", UploadMessage.icon, DefaultTextFieldOptions);
+            UploadMessage.sendImmediate = EditorGUILayout.Toggle("Send Immediately", UploadMessage.sendImmediate, DefaultTextFieldOptions);
+            GUILayout.Space(TabLayoutPadding);
+            UploadAssetBundleButton();
+        }
+        GUILayout.EndVertical();
         GUILayout.Space(TabLayoutPadding);
         ShowMessages();
     }
@@ -288,6 +299,8 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     private Vector2 BundleViewScrollPos;
     private RemoteAssetBundleTreeView BundleTree;
     private RemoteAssetBundle currentBundle;
+    private Rect lastRect;
+    private float scrollViewHeight;
     public delegate void HandleLoadManifests();
     public delegate Task HandleLoadManifestsAwaitable();
     public delegate void HandleDeleteRemoteBundle(RemoteAssetBundle bundle);
@@ -307,16 +320,19 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
     public override void Show()
     {
         GUI.backgroundColor = DefaultColor;
-        GUILayout.Space(TabLayoutPadding);
-        GUILayout.Label(Label);
-        GUILayout.Space(TabLayoutPadding);
-        GUILayout.BeginHorizontal();
+        GUILayout.BeginVertical(contentBox);
         {
-            AppSelector();
-            GUILayout.FlexibleSpace();
-            ManifestEditor();
+            GUILayout.Label(Label, EditorStyles.boldLabel);
+            GUILayout.Space(TabLayoutPadding);
+            GUILayout.BeginHorizontal();
+            {
+                AppSelector();
+                GUILayout.FlexibleSpace();
+                ManifestEditor();
+            }
+            GUILayout.EndHorizontal();
         }
-        GUILayout.EndHorizontal();
+        GUILayout.EndVertical();
         GUILayout.Space(TabLayoutPadding);
         ShowMessages();
     }
@@ -352,11 +368,11 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
 
     public void ManifestEditor()
     {
+        lastRect = GUILayoutUtility.GetLastRect();
+        lastRect.x = lastRect.x + TabLayoutPadding;
+        lastRect.height = scrollViewHeight;
         if (!string.IsNullOrEmpty(CurrentAppName))
         {
-            Rect lastRect = GUILayoutUtility.GetLastRect();
-            lastRect.x = lastRect.x + TabLayoutPadding;
-            lastRect.height = (parentPosition.height / 2) - TabLayoutPadding;
             BundleTree.OnGUI(lastRect);
             GUILayout.Space(TabLayoutPadding);
             GUILayout.BeginVertical();
@@ -367,7 +383,7 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
         }
         else
         {
-            GUILayout.Label("Click \"Load\" to Load All Apps and Select an App to Begin Editing Remote Asset Bundles");
+            GUI.Label(lastRect, "Click \"Load\" to Load All Apps and Select an App to Begin Editing Remote Asset Bundles");
         }
     }
 
@@ -430,6 +446,8 @@ public class RemoteAssetBundleGUIEditTab : RemoteAssetBundleGUITabContent
             GUILayout.EndScrollView();
         }
         GUILayout.EndVertical();
+        lastRect = GUILayoutUtility.GetLastRect();
+        scrollViewHeight = lastRect.height;
     }
 
     public void SelectCurrentManifest(string appName)

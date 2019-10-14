@@ -11,29 +11,25 @@
     using System.Net.Http;
     using System.Net;
     using System.Threading.Tasks;
+    
     public static class RemoteAssetBundleUtils
     {
 #if UNITY_EDITOR
         public static async Task<bool> CheckEndpoint(string url)
         {
-            using (HttpClient client = new HttpClient())
-            {
-                HttpResponseMessage res = await client.GetAsync(url);
-                return res.IsSuccessStatusCode;
-            }
+            HttpResponseMessage res = await client.GetAsync(url);
+            return res.IsSuccessStatusCode;
         }
+
+        private static readonly HttpClient client = new HttpClient();
 
         public static async Task<bool> CheckJWT(string url, string jwtName)
         {
-            using (HttpClient client = new HttpClient())
-            {
-                string jwt = FindJWT(jwtName);
-                if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
-                HttpResponseMessage res = await client.PostAsync(url, null);
-                return res.IsSuccessStatusCode;
-            }
-
+            string jwt = FindJWT(jwtName);
+            if (string.IsNullOrEmpty(jwt)) throw new FileNotFoundException(string.Format("Could not find JWT file with name {0}", jwtName));
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", jwt);
+            HttpResponseMessage res = await client.PostAsync(url, null);
+            return res.IsSuccessStatusCode;
         }
         ///<summary>Finds the JSON Web Token required to POST AssetBundles to the server
         ///<param name="name">The name of the JWT file</param>
@@ -73,31 +69,28 @@
         public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, FCMMessage message, string appName = null, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
-            using (HttpClient client = new HttpClient())
+            if (info.Exists())
             {
-                if (info.Exists())
+                if (useJWT)
                 {
-                    if (useJWT)
-                    {
-                        client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
-                    }
-                    MultipartFormDataContent formData = new MultipartFormDataContent();
-                    FileInfo f = new FileInfo(info.path);
-                    StreamContent fs = new StreamContent(f.OpenRead());
-                    formData.Add(fs, "bundle", f.Name);
-                    string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
-                    formData.Add(new StringContent(app), "appName");
-                    if (message.IsValid())
-                    {
-                        formData.Add(new StringContent(message.Serialize()), "message");
-                    }
-                    
-                    return client.PostAsync(url, formData);
+                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                 }
-                else
+                MultipartFormDataContent formData = new MultipartFormDataContent();
+                FileInfo f = new FileInfo(info.path);
+                StreamContent fs = new StreamContent(f.OpenRead());
+                formData.Add(fs, "bundle", f.Name);
+                string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
+                formData.Add(new StringContent(app), "appName");
+                if (message.IsValid())
                 {
-                    throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.name, info.path));
+                    formData.Add(new StringContent(message.Serialize()), "message");
                 }
+
+                return client.PostAsync(url, formData);
+            }
+            else
+            {
+                throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.name, info.path));
             }
         }
 
@@ -112,26 +105,23 @@
         public static Task<HttpResponseMessage> UploadAssetBundleAsync(string url, AssetBundleInfo info, string appName = null, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
-            using (HttpClient client = new HttpClient())
+            if (info.Exists())
             {
-                if (info.Exists())
+                if (useJWT)
                 {
-                    if (useJWT)
-                    {
-                        client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
-                    }
-                    MultipartFormDataContent formData = new MultipartFormDataContent();
-                    FileInfo f = new FileInfo(info.path);
-                    StreamContent fs = new StreamContent(f.OpenRead());
-                    formData.Add(fs, "bundle", f.Name);
-                    string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
-                    formData.Add(new StringContent(app), "appName");
-                    return client.PostAsync(url, formData);
+                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
                 }
-                else
-                {
-                    throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.name, info.path));
-                }
+                MultipartFormDataContent formData = new MultipartFormDataContent();
+                FileInfo f = new FileInfo(info.path);
+                StreamContent fs = new StreamContent(f.OpenRead());
+                formData.Add(fs, "bundle", f.Name);
+                string app = !string.IsNullOrEmpty(appName) ? appName : Application.productName;
+                formData.Add(new StringContent(app), "appName");
+                return client.PostAsync(url, formData);
+            }
+            else
+            {
+                throw new FileNotFoundException(string.Format("AssetBundle {0} does not exist in directory {1}", info.name, info.path));
             }
         }
 
@@ -145,17 +135,14 @@
         public static Task<HttpResponseMessage> VerifyAssetBundleAsync(string url, RemoteAssetBundle bundle, bool verifiedVal, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
-            using (HttpClient client = new HttpClient())
+            if (useJWT)
             {
-                if (useJWT)
-                {
-                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
-                }
-                string verified = "{\"verified\":" + (verifiedVal ? "true" : "false") + "}";
-                StringContent content = new StringContent(verified, Encoding.UTF8, "application/json");
-                string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
-                return client.PutAsync(endpoint, content);
+                client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
             }
+            string verified = "{\"verified\":" + (verifiedVal ? "true" : "false") + "}";
+            StringContent content = new StringContent(verified, Encoding.UTF8, "application/json");
+            string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+            return client.PutAsync(endpoint, content);
         }
 
         ///<summary>Simplified version of <see cref="VerifyAssetBundleAsync"/>
@@ -180,15 +167,12 @@
         public static Task<HttpResponseMessage> DeleteAssetBundleAsync(string url, RemoteAssetBundle bundle, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
-            using (HttpClient client = new HttpClient())
+            if (useJWT)
             {
-                if (useJWT)
-                {
-                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
-                }
-                string endpoint = string.Format("{0}?name={1}&versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
-                return client.DeleteAsync(endpoint);
+                client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
             }
+            string endpoint = string.Format("{0}?name={1}&versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+            return client.DeleteAsync(endpoint);
         }
 
         ///<summary>Simplified version of <see cref="UploadAssetBundleAsync" />
@@ -227,15 +211,12 @@
         public static Task<HttpResponseMessage> SendBundleMessageAsync(string url, RemoteAssetBundle bundle, string jwtName = null)
         {
             bool useJWT = !string.IsNullOrEmpty(jwtName);
-            using (HttpClient client = new HttpClient())
+            if (useJWT)
             {
-                if (useJWT)
-                {
-                    client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
-                }
-                string endpoint = string.Format("{0}/{1}?versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
-                return client.PostAsync(endpoint, null);
+                client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
             }
+            string endpoint = string.Format("{0}/{1}?versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+            return client.PostAsync(endpoint, null);
         }
 
         public static async Task<FCMMessageStatus> SendBundleMessage(string url, RemoteAssetBundle bundle, string jwtName = null)
@@ -281,10 +262,7 @@
         {
             string endpoint = string.Format("{0}?verified={1}", url, WebUtility.UrlEncode(verified ? "true" : "false"));
             if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appName={0}", WebUtility.UrlEncode(appName));
-            using (HttpClient client = new HttpClient())
-            {
-                return client.GetAsync(endpoint);
-            }
+            return client.GetAsync(endpoint);
         }
 
         ///<summary>Convenience method that wraps <see cref="GetAssetBundleManifestAsync"/>
