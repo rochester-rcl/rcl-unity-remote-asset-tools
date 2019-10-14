@@ -11,17 +11,22 @@
     using System.Net.Http;
     using System.Net;
     using System.Threading.Tasks;
-    
+    using System.Text.RegularExpressions;
     public static class RemoteAssetBundleUtils
     {
+        private static readonly HttpClient client = new HttpClient();
+        public static string Sanitize(string val)
+        {
+            string pattern = "[^ -~]+";
+            Regex regEx = new Regex(pattern);
+            return WebUtility.UrlEncode(regEx.Replace(val, ""));
+        }
 #if UNITY_EDITOR
         public static async Task<bool> CheckEndpoint(string url)
         {
             HttpResponseMessage res = await client.GetAsync(url);
             return res.IsSuccessStatusCode;
         }
-
-        private static readonly HttpClient client = new HttpClient();
 
         public static async Task<bool> CheckJWT(string url, string jwtName)
         {
@@ -141,7 +146,7 @@
             }
             string verified = "{\"verified\":" + (verifiedVal ? "true" : "false") + "}";
             StringContent content = new StringContent(verified, Encoding.UTF8, "application/json");
-            string endpoint = string.Format("{0}/{1}?versionhash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+            string endpoint = string.Format("{0}/{1}?versionhash={2}", url, Sanitize(bundle.info.name), Sanitize(bundle.versionHash));
             return client.PutAsync(endpoint, content);
         }
 
@@ -171,7 +176,7 @@
             {
                 client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
             }
-            string endpoint = string.Format("{0}?name={1}&versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+            string endpoint = string.Format("{0}?name={1}&versionHash={2}", url, Sanitize(bundle.info.name), Sanitize(bundle.versionHash));
             return client.DeleteAsync(endpoint);
         }
 
@@ -215,7 +220,7 @@
             {
                 client.DefaultRequestHeaders.Authorization = GenerateAuthHeaderFromJWT(jwtName);
             }
-            string endpoint = string.Format("{0}/{1}?versionHash={2}", url, WebUtility.UrlEncode(bundle.info.name), WebUtility.UrlEncode(bundle.versionHash));
+            string endpoint = string.Format("{0}/{1}?versionHash={2}", url, Sanitize(bundle.info.name), Sanitize(bundle.versionHash));
             return client.PostAsync(endpoint, null);
         }
 
@@ -260,8 +265,9 @@
         ///</summary>
         public static Task<HttpResponseMessage> GetAssetBundleManifestAsync(string url, string appName = null, bool verified = true)
         {
-            string endpoint = string.Format("{0}?verified={1}", url, WebUtility.UrlEncode(verified ? "true" : "false"));
-            if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appName={0}", WebUtility.UrlEncode(appName));
+            string endpoint = string.Format("{0}?verified={1}", url, Sanitize(verified ? "true" : "false"));
+            if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appName={0}", Sanitize(appName));
+            Debug.Log(endpoint);
             return client.GetAsync(endpoint);
         }
 
@@ -294,7 +300,6 @@
                 yield return req.SendWebRequest();
                 if (req.isNetworkError || req.isHttpError)
                 {
-                    // TODO add some sort of error handling here - should pass error as first param of callback
                     callback(req.error, null);
                 }
                 callback(null, DownloadHandlerAssetBundle.GetContent(req));
