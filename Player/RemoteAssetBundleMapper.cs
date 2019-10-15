@@ -15,19 +15,28 @@ namespace RemoteAssetBundleTools
             public string assetBundleKey;
             public string appName;
             public RemoteAssetBundleManifest Manifest { get; set; }
-            public AssetBundle[] Bundles { get; set; }
+            public List<AssetBundle> Bundles { get; set; }
         }
 
         public string remoteAssetBundleEndpoint;
         [Tooltip("Set to false if you would like to pull unverified bundles (i.e. for development)")]
         public bool verified = true;
+        [Tooltip("The maximum number of concurrent requests for fetching RemoteAssetBundles")]
+        public uint requestCount = 4;
         public RemoteAssetBundleMap[] remoteAssetBundleMaps;
         public delegate void HandleManifestsRetrieved(RemoteAssetBundleManifest[] manifests);
+        public delegate void HandleAssetBundlesLoaded(string key);
         public event HandleManifestsRetrieved OnManifestsRetrieved;
+        public event HandleAssetBundlesLoaded OnAssetBundlesLoaded;
         private bool manifestsRetrieved;
+        private CoroutineQueue taskQueue;
+        private uint totalAssetBundles;
+        private uint curretAssetBundleCount;
+        private float progress;
         public void Start()
         {
             StartCoroutine(FetchAllManifests());
+            taskQueue = new CoroutineQueue(1, StartCoroutine);
         }
 
         public IEnumerator FetchAllManifests()
@@ -44,18 +53,31 @@ namespace RemoteAssetBundleTools
         private IEnumerator FetchAssetBundles(string key)
         {
             RemoteAssetBundleMap assetMap = System.Array.Find(remoteAssetBundleMaps, (RemoteAssetBundleMap map) => map.assetBundleKey == key);
-            assetMap.Bundles = new AssetBundle[assetMap.Manifest.bundles.Length];
+            assetMap.Bundles = new List<AssetBundle>();
             RemoteAssetBundle bundle;
+            IEnumerator[] tasks = new IEnumerator[assetMap.Manifest.bundles.Length];
             for (int i = 0; i < assetMap.Manifest.bundles.Length; i++)
             {
                 bundle = assetMap.Manifest.bundles[i];
-                yield return FetchAssetBundle(bundle, assetMap, i);
+                tasks[i] = FetchAssetBundle(bundle, assetMap);
             }
-            // On Asset Bundles Loaded 
-           
+            CoroutineQueue.HandleProgressUpdate func = PrepareProgress(key);
+            taskQueue.OnProgressUpdate += func;
+            // On Asset Bundles Loaded
+            yield return taskQueue.All(tasks);
+            taskQueue.OnProgressUpdate -= func;
+            if (OnAssetBundlesLoaded != null)
+            {
+                OnAssetBundlesLoaded(key);
+            }
         }
 
-        private Coroutine FetchAssetBundle(RemoteAssetBundle bundle, RemoteAssetBundleMap map, int index)
+        private CoroutineQueue.HandleProgressUpdate PrepareProgress(string key)
+        {
+            return (float progress) => { Debug.Log(string.Format("{0}: {1}%", key, progress.ToString()));};
+        }
+
+        private IEnumerator FetchAssetBundle(RemoteAssetBundle bundle, RemoteAssetBundleMap map)
         {
             System.Action<string, AssetBundle> callback = (error, b) => {
                 if (!string.IsNullOrEmpty(error))
@@ -64,10 +86,10 @@ namespace RemoteAssetBundleTools
                 }
                 else 
                 {
-                    map.Bundles[index] = b;
+                    if (b) map.Bundles.Add(b);
                 }
             };
-            return StartCoroutine(RemoteAssetBundleUtils.DownloadAssetBundleAsync(remoteAssetBundleEndpoint, bundle, callback));
+            return RemoteAssetBundleUtils.DownloadAssetBundleAsync(remoteAssetBundleEndpoint, bundle, callback);
         }
 
         private async Task FetchAllManifestsAwaitable()
@@ -100,12 +122,14 @@ namespace RemoteAssetBundleTools
     {
         public SerializedProperty remoteAssetBundleEndpoint;
         public SerializedProperty verified;
+        public SerializedProperty requestCount;
         public SerializedProperty remoteAssetBundleMaps;
         public SerializedProperty arraySize;
         public void OnEnable()
         {
             remoteAssetBundleEndpoint = serializedObject.FindProperty("remoteAssetBundleEndpoint");
             verified = serializedObject.FindProperty("verified");
+            requestCount = serializedObject.FindProperty("requestCount");
             remoteAssetBundleMaps = serializedObject.FindProperty("remoteAssetBundleMaps");
             arraySize = remoteAssetBundleMaps.FindPropertyRelative("Array.size");
         }
@@ -127,6 +151,7 @@ namespace RemoteAssetBundleTools
             serializedObject.Update();
             EditorGUILayout.PropertyField(remoteAssetBundleEndpoint);
             EditorGUILayout.PropertyField(verified);
+            EditorGUILayout.PropertyField(requestCount);
             DrawArrayProperties();
             serializedObject.ApplyModifiedProperties();
         }

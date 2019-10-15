@@ -302,7 +302,18 @@
                 {
                     callback(req.error, null);
                 }
-                callback(null, DownloadHandlerAssetBundle.GetContent(req));
+                else
+                {
+                    try
+                    {
+                        AssetBundle ab = DownloadHandlerAssetBundle.GetContent(req);
+                        callback(null, ab);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        callback(ex.Message, null);
+                    }
+                }
             }
         }
     }
