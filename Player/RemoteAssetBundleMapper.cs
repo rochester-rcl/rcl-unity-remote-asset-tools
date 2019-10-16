@@ -26,17 +26,21 @@ namespace RemoteAssetBundleTools
         public RemoteAssetBundleMap[] remoteAssetBundleMaps;
         public delegate void HandleManifestsRetrieved(RemoteAssetBundleManifest[] manifests);
         public delegate void HandleAssetBundlesLoaded(string key);
+        public delegate void HandleProgressUpdate(string message, float progress);
         public event HandleManifestsRetrieved OnManifestsRetrieved;
         public event HandleAssetBundlesLoaded OnAssetBundlesLoaded;
+        public event HandleProgressUpdate OnProgressUpdate;
         private bool manifestsRetrieved;
         private CoroutineQueue taskQueue;
         private uint totalAssetBundles;
         private uint curretAssetBundleCount;
         private float progress;
+        private SimpleProgressBar progressBar;
         public void Start()
         {
             StartCoroutine(FetchAllManifests());
-            taskQueue = new CoroutineQueue(1, StartCoroutine);
+            taskQueue = new CoroutineQueue(requestCount, StartCoroutine);
+            progressBar = gameObject.GetComponent<SimpleProgressBar>();
         }
 
         public IEnumerator FetchAllManifests()
@@ -61,30 +65,46 @@ namespace RemoteAssetBundleTools
                 bundle = assetMap.Manifest.bundles[i];
                 tasks[i] = FetchAssetBundle(bundle, assetMap);
             }
-            CoroutineQueue.HandleProgressUpdate func = PrepareProgress(key);
+            CoroutineQueue.HandleProgressUpdate func = PrepareProgress(string.Format("Downloading {0} Assets", tasks.Length));
             taskQueue.OnProgressUpdate += func;
-            // On Asset Bundles Loaded
             yield return taskQueue.All(tasks);
             taskQueue.OnProgressUpdate -= func;
             if (OnAssetBundlesLoaded != null)
             {
                 OnAssetBundlesLoaded(key);
             }
+            if (progressBar)
+            {
+                progressBar.Message = "All Assets Downloaded";
+            }
+            Debug.Log("All done");
         }
 
-        private CoroutineQueue.HandleProgressUpdate PrepareProgress(string key)
+        private CoroutineQueue.HandleProgressUpdate PrepareProgress(string message)
         {
-            return (float progress) => { Debug.Log(string.Format("{0}: {1}%", key, progress.ToString()));};
+            return (float progress) =>
+            {
+                if (OnProgressUpdate != null)
+                {
+                    OnProgressUpdate(message, progress);
+                }
+                if (progressBar)
+                {
+                    progressBar.Progress = progress;
+                    progressBar.Message = message;
+                }
+            };
         }
 
         private IEnumerator FetchAssetBundle(RemoteAssetBundle bundle, RemoteAssetBundleMap map)
         {
-            System.Action<string, AssetBundle> callback = (error, b) => {
+            System.Action<string, AssetBundle> callback = (error, b) =>
+            {
                 if (!string.IsNullOrEmpty(error))
                 {
                     Debug.LogError(error);
                 }
-                else 
+                else
                 {
                     if (b) map.Bundles.Add(b);
                 }
