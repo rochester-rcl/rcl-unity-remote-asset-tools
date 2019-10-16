@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace RemoteAssetBundleTools
 {
@@ -16,6 +17,19 @@ namespace RemoteAssetBundleTools
             public string appName;
             public RemoteAssetBundleManifest Manifest { get; set; }
             public List<AssetBundle> Bundles { get; set; }
+            public bool IsReady()
+            {
+                try
+                {
+                    return Manifest.bundles.Length == Bundles.Count;
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError(ex.Message);
+                    return false;
+                }
+
+            }
         }
 
         public string remoteAssetBundleEndpoint;
@@ -27,8 +41,12 @@ namespace RemoteAssetBundleTools
         public delegate void HandleManifestsRetrieved(RemoteAssetBundleManifest[] manifests);
         public delegate void HandleAssetBundlesLoaded(string key);
         public delegate void HandleProgressUpdate(string message, float progress);
+        public delegate void HandleAllAssetBundlesLoaded();
+        public delegate void HandleAssetBundleLoadingError(string message);
         public event HandleManifestsRetrieved OnManifestsRetrieved;
         public event HandleAssetBundlesLoaded OnAssetBundlesLoaded;
+        public event HandleAllAssetBundlesLoaded OnAllAssetBundlesLoaded;
+        public event HandleAssetBundleLoadingError OnAssetBundleLoadingError;
         public event HandleProgressUpdate OnProgressUpdate;
         private bool manifestsRetrieved;
         private CoroutineQueue taskQueue;
@@ -38,9 +56,9 @@ namespace RemoteAssetBundleTools
         private SimpleProgressBar progressBar;
         public void Start()
         {
-            StartCoroutine(FetchAllManifests());
             taskQueue = new CoroutineQueue(requestCount, StartCoroutine);
             progressBar = gameObject.GetComponent<SimpleProgressBar>();
+            StartCoroutine(FetchAllManifests());
         }
 
         public IEnumerator FetchAllManifests()
@@ -50,13 +68,45 @@ namespace RemoteAssetBundleTools
             {
                 yield return null;
             }
-            // try to download the bundle - won't actually do it here though 
-            StartCoroutine(FetchAssetBundles(remoteAssetBundleMaps[0].assetBundleKey));
+            yield return StartCoroutine(FetchAllAssetBundles());
+        }
+
+        public IEnumerator FetchAllAssetBundles()
+        {
+            foreach (RemoteAssetBundleMap mapping in remoteAssetBundleMaps)
+            {
+                yield return FetchAssetBundles(mapping.assetBundleKey);
+            }
+            if (AllRemoteBundlesReady())
+            {
+                UpdateProgressBar(1.0f, "All New Content Successfully Downloaded");
+                if (OnAllAssetBundlesLoaded != null)
+                {
+                    OnAllAssetBundlesLoaded();
+                }
+            }
+            else
+            {
+                string message = "There was an Error Downloading Some of the New Content.";
+                UpdateProgressBar(1.0f, message);
+                if (OnAssetBundleLoadingError != null)
+                {
+                    OnAssetBundleLoadingError(message);
+                }
+            }
+        }
+
+        public bool AllRemoteBundlesReady()
+        {
+            return remoteAssetBundleMaps.All(mapping => mapping.IsReady());
         }
 
         private IEnumerator FetchAssetBundles(string key)
         {
-            RemoteAssetBundleMap assetMap = System.Array.Find(remoteAssetBundleMaps, (RemoteAssetBundleMap map) => map.assetBundleKey == key);
+            RemoteAssetBundleMap assetMap = System.Array.Find(
+                remoteAssetBundleMaps,
+                (RemoteAssetBundleMap map) => map.assetBundleKey == key
+            );
             assetMap.Bundles = new List<AssetBundle>();
             RemoteAssetBundle bundle;
             IEnumerator[] tasks = new IEnumerator[assetMap.Manifest.bundles.Length];
@@ -65,7 +115,12 @@ namespace RemoteAssetBundleTools
                 bundle = assetMap.Manifest.bundles[i];
                 tasks[i] = FetchAssetBundle(bundle, assetMap);
             }
-            CoroutineQueue.HandleProgressUpdate func = PrepareProgress(string.Format("Downloading {0} Assets", tasks.Length));
+            UpdateProgressBar(0.0f, null);
+            CoroutineQueue.HandleProgressUpdate func = PrepareProgress(
+                string.Format("Downloading {0} Assets for App {1}",
+                tasks.Length,
+                assetMap.appName
+            ));
             taskQueue.OnProgressUpdate += func;
             yield return taskQueue.All(tasks);
             taskQueue.OnProgressUpdate -= func;
@@ -75,9 +130,8 @@ namespace RemoteAssetBundleTools
             }
             if (progressBar)
             {
-                progressBar.Message = "All Assets Downloaded";
+                progressBar.Message = string.Format("All Assets Downloaded for {0}", assetMap.appName);
             }
-            Debug.Log("All done");
         }
 
         private CoroutineQueue.HandleProgressUpdate PrepareProgress(string message)
@@ -88,12 +142,17 @@ namespace RemoteAssetBundleTools
                 {
                     OnProgressUpdate(message, progress);
                 }
-                if (progressBar)
-                {
-                    progressBar.Progress = progress;
-                    progressBar.Message = message;
-                }
+                UpdateProgressBar(progress, message);
             };
+        }
+
+        private void UpdateProgressBar(float progress, string message = null)
+        {
+            if (progressBar)
+            {
+                progressBar.Progress = progress;
+                progressBar.Message = message;
+            }
         }
 
         private IEnumerator FetchAssetBundle(RemoteAssetBundle bundle, RemoteAssetBundleMap map)
@@ -116,6 +175,7 @@ namespace RemoteAssetBundleTools
         {
             try
             {
+                UpdateProgressBar(1.0f, "Checking for New Content");
                 RemoteAssetBundleManifest[] manifests = new RemoteAssetBundleManifest[remoteAssetBundleMaps.Length];
                 RemoteAssetBundleMap map;
                 for (int i = 0; i < remoteAssetBundleMaps.Length; i++)
@@ -161,7 +221,12 @@ namespace RemoteAssetBundleTools
             EditorGUILayout.PropertyField(arraySize, new GUIContent("Mappings Count"), true);
             for (int i = 0; i < arraySize.intValue; i++)
             {
-                EditorGUILayout.PropertyField(remoteAssetBundleMaps.GetArrayElementAtIndex(i), new GUIContent(string.Format("Remote Asset Bundle Map {0}", i.ToString())), true);
+                EditorGUILayout.PropertyField(
+                    remoteAssetBundleMaps.GetArrayElementAtIndex(i),
+                    new GUIContent(string.Format("Remote Asset Bundle Map {0}",
+                    i.ToString())),
+                    true
+                );
             }
             EditorGUI.indentLevel -= 1;
         }

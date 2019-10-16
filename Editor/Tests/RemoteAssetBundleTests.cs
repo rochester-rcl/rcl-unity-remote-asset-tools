@@ -20,7 +20,7 @@ namespace RemoteAssetBundleToolsTests
         public static string TEST_BUNDLE_PATH = string.Format("{0}/{1}", TEST_BUNDLE_DIR, TEST_BUNDLE_NAME);
         public const string TEST_SERVER_URL = "http://localhost:3000/bundles";
         public const string TEST_SERVER_ENDPOINT_CHECK = "http://localhost:3000/";
-        public const string JWT_TOKEN_NAME = "remote-asset-token";
+        public const string JWT_TOKEN_NAME = "test-token";
 
     }
 
