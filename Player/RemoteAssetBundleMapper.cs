@@ -16,6 +16,7 @@ namespace RemoteAssetBundleTools
             public string assetBundleKey;
             public string appName;
             public string displayName;
+            public string[] localAssetBundles;
             public RemoteAssetBundleManifest Manifest { get; set; }
             public List<AssetBundle> Bundles { get; set; }
             public bool IsReady()
@@ -24,7 +25,7 @@ namespace RemoteAssetBundleTools
                 {
                     return Manifest.bundles.Length == Bundles.Count;
                 }
-                catch (System.Exception ex)
+                catch
                 {
                     return false;
                 }
@@ -218,6 +219,7 @@ namespace RemoteAssetBundleTools
         public SerializedProperty requestCount;
         public SerializedProperty remoteAssetBundleMaps;
         public SerializedProperty arraySize;
+        public SerializedProperty localAssetBundlesArraySize;
         public void OnEnable()
         {
             remoteAssetBundleEndpoint = serializedObject.FindProperty("remoteAssetBundleEndpoint");
@@ -225,6 +227,32 @@ namespace RemoteAssetBundleTools
             requestCount = serializedObject.FindProperty("requestCount");
             remoteAssetBundleMaps = serializedObject.FindProperty("remoteAssetBundleMaps");
             arraySize = remoteAssetBundleMaps.FindPropertyRelative("Array.size");
+        }
+        private void DrawArrayLocalAssetBundleProperties(SerializedProperty localAssetBundles)
+        {
+            localAssetBundlesArraySize = localAssetBundles.FindPropertyRelative("Array.size");
+            EditorGUILayout.PropertyField(localAssetBundles);
+            EditorGUI.indentLevel += 1;
+            EditorGUILayout.PropertyField(localAssetBundlesArraySize, new GUIContent("Local Asset Bundles Count"), true);
+            for (int i = 0; i < localAssetBundlesArraySize.intValue; i++)
+            {
+               EditorGUILayout.BeginHorizontal();
+               {
+                   string assetBundleName = localAssetBundles.GetArrayElementAtIndex(i).stringValue;
+                   if (string.IsNullOrEmpty(assetBundleName))
+                   {
+                       assetBundleName = "Add a Local Asset Bundle";
+                   }
+                   EditorGUILayout.LabelField(assetBundleName);
+                   if (GUILayout.Button("Add"))
+                   {
+                       string bundlePath = EditorUtility.OpenFilePanel("Asset Bundles", "", "");
+                       localAssetBundles.GetArrayElementAtIndex(i).stringValue = System.IO.Path.GetFileName(bundlePath);
+                   }
+               }
+               EditorGUILayout.EndHorizontal();
+            }
+            EditorGUI.indentLevel -= 1;
         }
 
         private void DrawArrayProperties()
@@ -234,12 +262,15 @@ namespace RemoteAssetBundleTools
             EditorGUILayout.PropertyField(arraySize, new GUIContent("Mappings Count"), true);
             for (int i = 0; i < arraySize.intValue; i++)
             {
-                EditorGUILayout.PropertyField(
+                SerializedProperty remoteAssetBundleMap = remoteAssetBundleMaps.GetArrayElementAtIndex(i);
+                SerializedProperty localAssetBundles = remoteAssetBundleMap.FindPropertyRelative("localAssetBundles");
+                DrawArrayLocalAssetBundleProperties(localAssetBundles);
+                /*EditorGUILayout.PropertyField(
                     remoteAssetBundleMaps.GetArrayElementAtIndex(i),
                     new GUIContent(string.Format("Remote Asset Bundle Map {0}",
                     i.ToString())),
                     true
-                );
+                );*/
             }
             EditorGUI.indentLevel -= 1;
         }
