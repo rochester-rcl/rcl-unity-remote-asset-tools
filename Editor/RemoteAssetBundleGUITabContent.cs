@@ -2,11 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using UnityEditor.IMGUI.Controls;
 using RemoteAssetBundleTools;
 using System.Linq;
 using System.Threading.Tasks;
 #if UNITY_EDITOR
+using UnityEditor.IMGUI.Controls;
 public enum MessageStatus { Success, Error };
 
 public struct StatusMessage

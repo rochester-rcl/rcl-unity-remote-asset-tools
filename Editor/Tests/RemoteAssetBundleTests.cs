@@ -13,7 +13,6 @@ namespace RemoteAssetBundleToolsTests
 
     public static class TestConstants
     {
-
         public const string SAMPLE_PREFAB = "Assets/RemoteAssetBundleTools/Editor/Tests/TestAsset.prefab";
         public const string TEST_BUNDLE_NAME = "abtest.unity3d";
         public const string TEST_BUNDLE_DIR = "Assets/RemoteAssetBundleTools/Editor/Tests/TestBundles";
@@ -21,7 +20,6 @@ namespace RemoteAssetBundleToolsTests
         public const string TEST_SERVER_URL = "http://localhost:3000/bundles";
         public const string TEST_SERVER_ENDPOINT_CHECK = "http://localhost:3000/";
         public const string JWT_TOKEN_NAME = "test-token";
-
     }
 
     public abstract class AssetBundleTests : IPrebuildSetup

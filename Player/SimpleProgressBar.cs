@@ -11,14 +11,15 @@ namespace RemoteAssetBundleTools
         public float Progress { get; set; }
         public GameObject progressObj;
         public GameObject messageObj;
-        public bool indicating = false;
-        private GameObject indicatorObj;
-        private Image indicatorImage;
+        [Tooltip("Animates progress to show the bar is still active.")]
+        public bool active = false;
+        private GameObject activeObj;
+        private Image activeImage;
         private Image progressImage;
         private Text messageText;
         private bool animationTriggered;
         private float padding = 0.01f;
-        private Color indicatorColor = new Color(0.5f, 0.5f, 0.5f, 0.25f);
+        private Color activeColor = new Color(0.8f, 0.8f, 0.8f, 0.25f);
         public void Start()
         {
             progressImage = progressObj.GetComponent<Image>();
@@ -32,11 +33,11 @@ namespace RemoteAssetBundleTools
                 throw new MissingComponentException("SimpleProgressBar requires an Image component on the progressObj GameObject");
             }
             progressImage.fillAmount = 0.0f;
-            if (indicating)
+            if (active)
             {
-                indicatorObj = Instantiate(progressObj, progressObj.transform.position, progressObj.transform.rotation, progressObj.transform);
-                indicatorImage = indicatorObj.GetComponent<Image>();
-                indicatorImage.color = indicatorColor;
+                activeObj = Instantiate(progressObj, progressObj.transform.position, progressObj.transform.rotation, progressObj.transform);
+                activeImage = activeObj.GetComponent<Image>();
+                activeImage.color = activeColor;
             }
         }
 
@@ -50,17 +51,17 @@ namespace RemoteAssetBundleTools
 
         private void UpdateIndicator()
         {
-            if (indicating)
+            if (active)
             {
-                if (indicatorImage.fillAmount < (progressImage.fillAmount - padding))
+                if (activeImage.fillAmount < (progressImage.fillAmount - padding))
                 {
-                    indicatorImage.fillAmount = Mathf.Lerp(indicatorImage.fillAmount, progressImage.fillAmount, Time.deltaTime * 2.5f);
-                    indicatorImage.color = Color.Lerp(indicatorImage.color, Color.clear, Time.deltaTime * 0.5f);
+                    activeImage.fillAmount = Mathf.Lerp(activeImage.fillAmount, progressImage.fillAmount, Time.deltaTime * 2.5f);
+                    activeImage.color = Color.Lerp(activeImage.color, Color.clear, Time.deltaTime * 0.5f);
                 }
                 else
                 {
-                    indicatorImage.fillAmount = 0.0f;
-                    indicatorImage.color = indicatorColor;
+                    activeImage.fillAmount = 0.0f;
+                    activeImage.color = activeColor;
                 }
             }
         }

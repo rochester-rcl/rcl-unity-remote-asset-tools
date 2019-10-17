@@ -192,6 +192,7 @@
         {
             HttpResponseMessage response = await UploadAssetBundleAsync(url, info, message, appName, jwtName);
             string content = await response.Content.ReadAsStringAsync();
+            Debug.Log(content);
             return RemoteAssetBundle.Deserialize(content);
         }
 

@@ -4,10 +4,10 @@ using UnityEngine;
 using UnityEditor;
 using System.Threading.Tasks;
 using System.Linq;
-
+using System;
 namespace RemoteAssetBundleTools
 {
-
+    [RequireComponent(typeof(SimpleProgressBar))]
     public class RemoteAssetBundleMapper : MonoBehaviour
     {
         [System.Serializable]
@@ -15,6 +15,7 @@ namespace RemoteAssetBundleTools
         {
             public string assetBundleKey;
             public string appName;
+            public string displayName;
             public RemoteAssetBundleManifest Manifest { get; set; }
             public List<AssetBundle> Bundles { get; set; }
             public bool IsReady()
@@ -25,7 +26,6 @@ namespace RemoteAssetBundleTools
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogError(ex.Message);
                     return false;
                 }
 
@@ -57,8 +57,14 @@ namespace RemoteAssetBundleTools
         public void Start()
         {
             taskQueue = new CoroutineQueue(requestCount, StartCoroutine);
+            taskQueue.OnCoroutineError += HandleError;
             progressBar = gameObject.GetComponent<SimpleProgressBar>();
-            StartCoroutine(FetchAllManifests());
+            GetUpdatedContent();
+        }
+
+        public void OnDestroy()
+        {
+            taskQueue.OnCoroutineError -= HandleError;
         }
 
         public IEnumerator FetchAllManifests()
@@ -68,7 +74,15 @@ namespace RemoteAssetBundleTools
             {
                 yield return null;
             }
-            yield return StartCoroutine(FetchAllAssetBundles());
+            if (t.IsFaulted)
+            {
+                throw new Exception("Unable to Check for New Content. Is Wi-Fi or Data Turned On?");
+            }
+        }
+
+        public void GetUpdatedContent()
+        {
+            taskQueue.Chain(FetchAllManifests(), FetchAllAssetBundles());
         }
 
         public IEnumerator FetchAllAssetBundles()
@@ -88,11 +102,11 @@ namespace RemoteAssetBundleTools
             else
             {
                 string message = "There was an Error Downloading Some of the New Content.";
-                UpdateProgressBar(1.0f, message);
                 if (OnAssetBundleLoadingError != null)
                 {
                     OnAssetBundleLoadingError(message);
                 }
+                throw new Exception(message);
             }
         }
 
@@ -107,30 +121,34 @@ namespace RemoteAssetBundleTools
                 remoteAssetBundleMaps,
                 (RemoteAssetBundleMap map) => map.assetBundleKey == key
             );
-            assetMap.Bundles = new List<AssetBundle>();
-            RemoteAssetBundle bundle;
-            IEnumerator[] tasks = new IEnumerator[assetMap.Manifest.bundles.Length];
-            for (int i = 0; i < assetMap.Manifest.bundles.Length; i++)
+            if (assetMap == null || assetMap.Manifest.bundles == null)
             {
-                bundle = assetMap.Manifest.bundles[i];
-                tasks[i] = FetchAssetBundle(bundle, assetMap);
+                yield return null;
             }
-            UpdateProgressBar(0.0f, null);
-            CoroutineQueue.HandleProgressUpdate func = PrepareProgress(
-                string.Format("Downloading {0} Assets for App {1}",
-                tasks.Length,
-                assetMap.appName
-            ));
-            taskQueue.OnProgressUpdate += func;
-            yield return taskQueue.All(tasks);
-            taskQueue.OnProgressUpdate -= func;
-            if (OnAssetBundlesLoaded != null)
+            else
             {
-                OnAssetBundlesLoaded(key);
-            }
-            if (progressBar)
-            {
-                progressBar.Message = string.Format("All Assets Downloaded for {0}", assetMap.appName);
+                assetMap.Bundles = new List<AssetBundle>();
+                RemoteAssetBundle bundle;
+                IEnumerator[] tasks = new IEnumerator[assetMap.Manifest.bundles.Length];
+                for (int i = 0; i < assetMap.Manifest.bundles.Length; i++)
+                {
+                    bundle = assetMap.Manifest.bundles[i];
+                    tasks[i] = FetchAssetBundle(bundle, assetMap);
+                }
+                UpdateProgressBar(0.0f, null);
+                CoroutineQueue.HandleProgressUpdate func = PrepareProgress(
+                    string.Format("Downloading {0} Assets for App {1}",
+                    tasks.Length,
+                    assetMap.displayName
+                ));
+                taskQueue.OnProgressUpdate += func;
+                yield return taskQueue.All(tasks);
+                taskQueue.OnProgressUpdate -= func;
+                if (OnAssetBundlesLoaded != null)
+                {
+                    OnAssetBundlesLoaded(key);
+                }
+                UpdateProgressBar(1.0f, "All Assets Downloaded");
             }
         }
 
@@ -148,11 +166,13 @@ namespace RemoteAssetBundleTools
 
         private void UpdateProgressBar(float progress, string message = null)
         {
-            if (progressBar)
-            {
-                progressBar.Progress = progress;
-                progressBar.Message = message;
-            }
+            progressBar.Progress = progress;
+            progressBar.Message = message;
+        }
+
+        private void HandleError(string message)
+        {
+            UpdateProgressBar(1.0f, message);
         }
 
         private IEnumerator FetchAssetBundle(RemoteAssetBundle bundle, RemoteAssetBundleMap map)
@@ -173,26 +193,19 @@ namespace RemoteAssetBundleTools
 
         private async Task FetchAllManifestsAwaitable()
         {
-            try
+            UpdateProgressBar(1.0f, "Checking for New Content");
+            RemoteAssetBundleManifest[] manifests = new RemoteAssetBundleManifest[remoteAssetBundleMaps.Length];
+            RemoteAssetBundleMap map;
+            for (int i = 0; i < remoteAssetBundleMaps.Length; i++)
             {
-                UpdateProgressBar(1.0f, "Checking for New Content");
-                RemoteAssetBundleManifest[] manifests = new RemoteAssetBundleManifest[remoteAssetBundleMaps.Length];
-                RemoteAssetBundleMap map;
-                for (int i = 0; i < remoteAssetBundleMaps.Length; i++)
-                {
-                    map = remoteAssetBundleMaps[i];
-                    map.Manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(remoteAssetBundleEndpoint, map.appName, verified);
-                    manifests[i] = map.Manifest;
-                }
-                manifestsRetrieved = true;
-                if (OnManifestsRetrieved != null)
-                {
-                    OnManifestsRetrieved(manifests);
-                }
+                map = remoteAssetBundleMaps[i];
+                map.Manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(remoteAssetBundleEndpoint, map.appName, verified);
+                manifests[i] = map.Manifest;
             }
-            catch (System.Exception ex)
+            manifestsRetrieved = true;
+            if (OnManifestsRetrieved != null)
             {
-                Debug.LogError(ex);
+                OnManifestsRetrieved(manifests);
             }
         }
     }

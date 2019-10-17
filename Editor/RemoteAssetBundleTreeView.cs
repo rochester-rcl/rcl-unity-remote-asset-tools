@@ -2,10 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
-using UnityEditor.IMGUI.Controls;
 
 namespace RemoteAssetBundleTools
 {
+#if UNITY_EDITOR
+    using UnityEditor.IMGUI.Controls;
     public class RemoteAssetBundleTreeViewItem : TreeViewItem
     {
 
@@ -153,5 +154,5 @@ namespace RemoteAssetBundleTools
             return root;
         }
     }
-
+#endif
 }
