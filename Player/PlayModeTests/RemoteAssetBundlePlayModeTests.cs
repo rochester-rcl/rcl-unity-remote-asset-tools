@@ -21,16 +21,16 @@ namespace RemoteAssetBundleToolsTests
     {
         public bool finished = false;
         public bool IsTestFinished { get { return finished; } }
-
         public void Start()
         {
+            Caching.defaultCache.ClearCache();
             IEnumerator coroutine = TestDownloadRemoteAssetBundle((string error, AssetBundle bundle) =>
             {
                 // try to read from the bundle 
                 Assert.IsTrue(bundle.Contains(TestConstants.SAMPLE_PREFAB));
                 GameObject go = bundle.LoadAsset<GameObject>(TestConstants.SAMPLE_PREFAB);
                 Assert.IsNotNull(go.GetInstanceID());
-                AssetBundle.UnloadAllAssetBundles(false);
+                AssetBundle.UnloadAllAssetBundles(true);
             });
             StartCoroutine(coroutine);
         }
@@ -50,8 +50,7 @@ namespace RemoteAssetBundleToolsTests
             yield return StartCoroutine(RemoteAssetBundleUtils.DownloadAssetBundleAsync(TestConstants.TEST_SERVER_URL, bundle, callback));
 
             // Try to download again and check the cache
-            System.Action<string, AssetBundle> cb = TestDownloadCachedAsset;
-            yield return StartCoroutine(RemoteAssetBundleUtils.DownloadAssetBundleAsync(TestConstants.TEST_SERVER_URL, bundle, cb));
+            yield return StartCoroutine(RemoteAssetBundleUtils.DownloadAssetBundleAsync(TestConstants.TEST_SERVER_URL, bundle, TestDownloadCachedAsset));
 
             // Now try to delete it 
             Task<HttpStatusCode> t = RemoteAssetBundleUtils.DeleteAssetBundle(TestConstants.TEST_SERVER_URL, bundle);
@@ -71,7 +70,7 @@ namespace RemoteAssetBundleToolsTests
             Caching.GetCachedVersions(bundle.name, cachedVersions);
             Assert.IsTrue(bundle.Contains(TestConstants.SAMPLE_PREFAB));
             Assert.AreEqual(cachedVersions.Count, 1);
-            AssetBundle.UnloadAllAssetBundles(false);
+            AssetBundle.UnloadAllAssetBundles(true);
             bool cleared = Caching.defaultCache.ClearCache();
         }
 

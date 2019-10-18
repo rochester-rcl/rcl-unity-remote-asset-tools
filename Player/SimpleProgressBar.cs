@@ -9,17 +9,42 @@ namespace RemoteAssetBundleTools
     {
         public string Message { get; set; }
         public float Progress { get; set; }
+        private Color errorColor = new Color(0.9f, 0.0f, 0.0f, 1.0f);
+        private Image progressImage;
+        public bool ErrorState
+        {
+            get { return errorState; }
+            set
+            {
+                if (value)
+                {
+                    if (progressImage)
+                    {
+                        progressImage.color = errorColor;
+                    }
+                }
+                else
+                {
+                    if (progressImage)
+                    {
+                        progressImage.color = initialColor;
+                    }
+                }
+                errorState = value;
+            }
+        }
         public GameObject progressObj;
         public GameObject messageObj;
         [Tooltip("Animates progress to show the bar is still active.")]
         public bool active = false;
         private GameObject activeObj;
         private Image activeImage;
-        private Image progressImage;
         private Text messageText;
+        private bool errorState;
         private bool animationTriggered;
-        private float padding = 0.01f;
+        private float padding = 0.001f;
         private Color activeColor = new Color(0.8f, 0.8f, 0.8f, 0.25f);
+        private Color initialColor;
         public void Start()
         {
             progressImage = progressObj.GetComponent<Image>();
@@ -33,6 +58,7 @@ namespace RemoteAssetBundleTools
                 throw new MissingComponentException("SimpleProgressBar requires an Image component on the progressObj GameObject");
             }
             progressImage.fillAmount = 0.0f;
+            initialColor = progressImage.color;
             if (active)
             {
                 activeObj = Instantiate(progressObj, progressObj.transform.position, progressObj.transform.rotation, progressObj.transform);

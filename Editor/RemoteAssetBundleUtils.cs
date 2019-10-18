@@ -268,7 +268,6 @@
         {
             string endpoint = string.Format("{0}?verified={1}", url, Sanitize(verified ? "true" : "false"));
             if (!string.IsNullOrEmpty(appName)) endpoint += string.Format("&appName={0}", Sanitize(appName));
-            Debug.Log(endpoint);
             return client.GetAsync(endpoint);
         }
 

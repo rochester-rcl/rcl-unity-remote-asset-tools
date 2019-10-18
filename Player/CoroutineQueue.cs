@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using System.Linq;
 
 namespace RemoteAssetBundleTools
 {
@@ -17,7 +18,6 @@ namespace RemoteAssetBundleTools
         private HandleStartCoroutine coroutineStarter;
         private uint numActive;
         private int total;
-        private int completedCount;
         private float progress;
 
         private class CoroutineCallbackWrapper
@@ -41,6 +41,10 @@ namespace RemoteAssetBundleTools
 
         public CoroutineQueue(uint max, HandleStartCoroutine starter)
         {
+            if (max < 2)
+            {
+                throw new Exception("Max Concurrency Levels of Less Than 2 will Result in a Deadlock.");
+            }
             maxActive = max;
             coroutineStarter = starter;
             queue = new Queue<CoroutineCallbackWrapper>();
@@ -54,6 +58,7 @@ namespace RemoteAssetBundleTools
 
         private void RunInternal(CoroutineCallbackWrapper wrapper)
         {
+
             if (numActive < maxActive)
             {
                 IEnumerator runner = CoroutineRunner(wrapper);
@@ -65,16 +70,44 @@ namespace RemoteAssetBundleTools
             }
         }
 
+        private void HandleCoroutineAllProgress(bool status, ref int completedCount, ref int total, ref bool failureState)
+        {
+            if (status)
+            {
+                completedCount++;
+            }
+            else
+            {
+                failureState = true;
+            }
+            if (OnProgressUpdate != null)
+            {
+                if (total != 0)
+                {
+                    OnProgressUpdate((float)completedCount / (float)total);
+                }
+            }
+        }
+
         public IEnumerator All(IEnumerator[] coroutines)
         {
             total = coroutines.Length;
-            completedCount = 0;
+            int completedCount = 0;
+            bool failureState = false;
             foreach (IEnumerator coroutine in coroutines)
             {
-                Run(coroutine);
+                Run(coroutine, (status) =>
+                {
+                    HandleCoroutineAllProgress(status, ref completedCount, ref total, ref failureState);
+                });
             }
             while (completedCount < total)
             {
+                if (failureState)
+                {
+                    Debug.LogError("Unable to Execute All Coroutines");
+                    yield break;
+                }
                 yield return null;
             }
             total = 0;
@@ -83,14 +116,9 @@ namespace RemoteAssetBundleTools
 
         public void Chain(params IEnumerator[] coroutines)
         {
-            for (int i = 0; i < coroutines.Length; i++)
+            if (coroutines.Length > 0)
             {
-                IEnumerator current = coroutines[i];
-                IEnumerator next = (i < coroutines.Length - 1) ? coroutines[i + 1] : null;
-                if (next != null)
-                {
-                    Run(current, (status) => { if (status) Run(next); });
-                }
+                Run(coroutines[0], (status) => { if (status) Chain(coroutines.Skip(1).ToArray());});
             }
         }
 
@@ -121,14 +149,6 @@ namespace RemoteAssetBundleTools
                 yield return current;
             }
             wrapper.ExecCallback(true);
-            completedCount++;
-            if (OnProgressUpdate != null)
-            {
-                if (total != 0)
-                {
-                    OnProgressUpdate((float)completedCount / (float)total);
-                }
-            }
             numActive--;
             if (queue.Count > 0)
             {
