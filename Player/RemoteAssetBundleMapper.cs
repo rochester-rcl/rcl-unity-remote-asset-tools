@@ -47,6 +47,7 @@ namespace RemoteAssetBundleTools
         public bool verified = true;
         [Tooltip("The maximum number of concurrent requests for fetching RemoteAssetBundles")]
         public uint requestCount = 4;
+        public bool loadAssetBundlesOnStart = false;
         public RemoteAssetBundleMap[] remoteAssetBundleMaps;
         public delegate void HandleManifestsRetrieved(RemoteAssetBundleManifest[] manifests);
         public delegate void HandleAssetBundlesLoaded(string key);
@@ -69,12 +70,26 @@ namespace RemoteAssetBundleTools
             taskQueue = new CoroutineQueue(requestCount, StartCoroutine);
             taskQueue.OnCoroutineError += HandleError;
             progressBar = gameObject.GetComponent<SimpleProgressBar>();
-            GetUpdatedContent();
+            if (loadAssetBundlesOnStart)
+            {
+                GetUpdatedContent();
+            }
         }
 
         public void OnDestroy()
         {
             taskQueue.OnCoroutineError -= HandleError;
+        }
+
+        public void UnloadAllBundles()
+        {
+            foreach (RemoteAssetBundleMap map in remoteAssetBundleMaps)
+            {
+                foreach (AssetBundle b in map.Bundles)
+                {
+                    b.Unload(true);
+                }
+            }
         }
 
         public IEnumerator FetchAllManifests()
@@ -121,7 +136,28 @@ namespace RemoteAssetBundleTools
                     throw new Exception(message);
                 }
             }
-            UpdateProgressBar(1.0f, "No New Content Available to Download. Your App is up-to-date!");
+            else
+            {
+                UpdateProgressBar(1.0f, "No New Content Available to Download. Your App is up-to-date!");
+                if (AllRemoteBundlesReady())
+                {
+                    UpdateProgressBar(1.0f, "All New Content Successfully Downloaded");
+                    if (OnAllAssetBundlesLoaded != null)
+                    {
+                        OnAllAssetBundlesLoaded();
+                    }
+                }
+                else
+                {
+                    string message = "There was an Error Loading the App's Content.";
+                    if (OnAssetBundleLoadingError != null)
+                    {
+                        OnAssetBundleLoadingError(message);
+                    }
+                    throw new Exception(message);
+                }
+            }
+
         }
 
         public bool AllRemoteBundlesReady()
@@ -265,6 +301,7 @@ namespace RemoteAssetBundleTools
         public SerializedProperty remoteAssetBundleEndpoint;
         public SerializedProperty verified;
         public SerializedProperty requestCount;
+        public SerializedProperty loadAssetBundlesOnStart;
         public SerializedProperty remoteAssetBundleMaps;
         public SerializedProperty arraySize;
         public SerializedProperty localAssetBundlesArraySize;
@@ -279,6 +316,7 @@ namespace RemoteAssetBundleTools
             remoteAssetBundleEndpoint = serializedObject.FindProperty("remoteAssetBundleEndpoint");
             verified = serializedObject.FindProperty("verified");
             requestCount = serializedObject.FindProperty("requestCount");
+            loadAssetBundlesOnStart = serializedObject.FindProperty("loadAssetBundlesOnStart");
             remoteAssetBundleMaps = serializedObject.FindProperty("remoteAssetBundleMaps");
             arraySize = remoteAssetBundleMaps.FindPropertyRelative("Array.size");
             populateFoldouts();
@@ -395,6 +433,7 @@ namespace RemoteAssetBundleTools
             EditorGUILayout.PropertyField(remoteAssetBundleEndpoint);
             EditorGUILayout.PropertyField(verified);
             EditorGUILayout.PropertyField(requestCount);
+            EditorGUILayout.PropertyField(loadAssetBundlesOnStart);
             DrawArrayProperties();
             serializedObject.ApplyModifiedProperties();
         }
