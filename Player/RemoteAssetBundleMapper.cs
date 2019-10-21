@@ -264,8 +264,9 @@ namespace RemoteAssetBundleTools
         public SerializedProperty assetBundleKey;
         public SerializedProperty appName;
         public SerializedProperty displayName;
-        private bool[] foldouts;
+        private List<bool> foldouts;
         private bool showRemoteAssetBundleMaps = false;
+        private int buttonWidth = 100;
         public void OnEnable()
         {
             remoteAssetBundleEndpoint = serializedObject.FindProperty("remoteAssetBundleEndpoint");
@@ -273,44 +274,62 @@ namespace RemoteAssetBundleTools
             requestCount = serializedObject.FindProperty("requestCount");
             remoteAssetBundleMaps = serializedObject.FindProperty("remoteAssetBundleMaps");
             arraySize = remoteAssetBundleMaps.FindPropertyRelative("Array.size");
-            foldouts = new bool[arraySize.intValue];
+            populateFoldouts();
+        }
+
+        public void populateFoldouts()
+        {
+            foldouts = new List<bool>();
+            for (int i = 0; i < arraySize.intValue; i++)
+            {
+                foldouts.Add(false);
+            }
         }
         private void DrawArrayLocalAssetBundleProperties(SerializedProperty localAssetBundles)
         {
+            Rect last;
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            localAssetBundlesArraySize = localAssetBundles.FindPropertyRelative("Array.size");
-            EditorGUILayout.LabelField("Local Asset Bundles");
-            EditorGUI.indentLevel += 1;
-
-            if (GUILayout.Button("Add"))
             {
-                localAssetBundlesArraySize.intValue++;
-                SerializedProperty localBundle = localAssetBundles.GetArrayElementAtIndex(localAssetBundlesArraySize.intValue - 1);
-                if (GUILayout.Button("Add"))
-                {
-                    string bundlePath = EditorUtility.OpenFilePanel("Asset Bundles", "", "");
-                    localBundle.stringValue = System.IO.Path.GetFileName(bundlePath);
-                }
-            }
-            for (int i = 0; i < localAssetBundlesArraySize.intValue; i++)
-            {
+                localAssetBundlesArraySize = localAssetBundles.FindPropertyRelative("Array.size");
+                EditorGUILayout.LabelField("Local Asset Bundles");
+                EditorGUI.indentLevel += 1;
                 EditorGUILayout.BeginHorizontal();
                 {
-                    string assetBundleName = localAssetBundles.GetArrayElementAtIndex(i).stringValue;
-                    if (string.IsNullOrEmpty(assetBundleName))
+                    GUILayout.Space(EditorGUI.indentLevel * 10);
+                    if (GUILayout.Button("Add", GUILayout.Width(buttonWidth)))
                     {
-                        assetBundleName = "Add a Local Asset Bundle";
-                    }
-                    EditorGUILayout.LabelField(assetBundleName);
-                    if (GUILayout.Button("Remove"))
-                    {
-                        localAssetBundles.DeleteArrayElementAtIndex(i);
-                        localAssetBundlesArraySize.intValue--;
+                        localAssetBundlesArraySize.intValue++;
+                        SerializedProperty localBundle = localAssetBundles.GetArrayElementAtIndex(localAssetBundlesArraySize.intValue - 1);
+                        string bundlePath = EditorUtility.OpenFilePanel("Asset Bundles", "", "");
+                        localBundle.stringValue = System.IO.Path.GetFileName(bundlePath);
                     }
                 }
                 EditorGUILayout.EndHorizontal();
+                for (int i = 0; i < localAssetBundlesArraySize.intValue; i++)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    {
+                        string assetBundleName = localAssetBundles.GetArrayElementAtIndex(i).stringValue;
+                        if (string.IsNullOrEmpty(assetBundleName))
+                        {
+                            assetBundleName = "Add a Local Asset Bundle";
+                        }
+                        EditorGUILayout.LabelField(assetBundleName);
+                        if (GUILayout.Button("Remove", GUILayout.Width(buttonWidth)))
+                        {
+                            localAssetBundles.DeleteArrayElementAtIndex(i);
+                        }
+                    }
+                    EditorGUILayout.EndHorizontal();
+                    last = GUILayoutUtility.GetLastRect();
+                    float h = last.height;
+                    last.y = (last.y + h) + 2;
+                    last.height = 1;
+                    EditorGUI.DrawRect(last, Color.gray);
+                    EditorGUILayout.Separator();
+                }
+                EditorGUI.indentLevel -= 1;
             }
-            EditorGUI.indentLevel -= 1;
             EditorGUILayout.EndVertical();
         }
 
@@ -320,7 +339,11 @@ namespace RemoteAssetBundleTools
             if (showRemoteAssetBundleMaps)
             {
                 EditorGUI.indentLevel += 1;
-                EditorGUILayout.PropertyField(arraySize, new GUIContent("Mappings Count"), true);
+                if (GUILayout.Button("Add", GUILayout.Width(buttonWidth)))
+                {
+                    arraySize.intValue++;
+                    foldouts.Add(false);
+                }
                 for (int i = 0; i < arraySize.intValue; i++)
                 {
                     SerializedProperty remoteAssetBundleMap = remoteAssetBundleMaps.GetArrayElementAtIndex(i);
@@ -328,17 +351,32 @@ namespace RemoteAssetBundleTools
                     appName = remoteAssetBundleMap.FindPropertyRelative("appName");
                     displayName = remoteAssetBundleMap.FindPropertyRelative("displayName");
                     SerializedProperty localAssetBundles = remoteAssetBundleMap.FindPropertyRelative("localAssetBundles");
-                    foldouts[i] = EditorGUILayout.Foldout(foldouts[i], string.Format("Remote Asset Bundle Map {0}",
-                        i.ToString()));
-                    if (foldouts[i])
+                    GUILayout.BeginVertical(EditorStyles.helpBox);
                     {
-                        EditorGUI.indentLevel += 1;
-                        assetBundleKey.stringValue = EditorGUILayout.TextField("Asset Bundle Key", assetBundleKey.stringValue);
-                        appName.stringValue = EditorGUILayout.TextField("App Name", appName.stringValue);
-                        displayName.stringValue = EditorGUILayout.TextField("Display Name", displayName.stringValue);
-                        DrawArrayLocalAssetBundleProperties(localAssetBundles);
-                        EditorGUI.indentLevel -= 1;
+                        GUILayout.BeginHorizontal();
+                        {
+                            foldouts[i] = EditorGUILayout.Foldout(foldouts[i], string.Format("Remote Asset Bundle Map {0}",
+                                i.ToString()));
+                            if (GUILayout.Button("Remove", GUILayout.Width(buttonWidth)))
+                            {
+                                remoteAssetBundleMaps.DeleteArrayElementAtIndex(i);
+                                return;
+                            }
+                        }
+                        GUILayout.EndHorizontal();
+                        EditorGUILayout.Space();
+                        if (foldouts[i])
+                        {
+                            EditorGUI.indentLevel += 1;
+                            assetBundleKey.stringValue = EditorGUILayout.TextField("Asset Bundle Key", assetBundleKey.stringValue);
+                            appName.stringValue = EditorGUILayout.TextField("App Name", appName.stringValue);
+                            displayName.stringValue = EditorGUILayout.TextField("Display Name", displayName.stringValue);
+                            DrawArrayLocalAssetBundleProperties(localAssetBundles);
+                            EditorGUILayout.Space();
+                            EditorGUI.indentLevel -= 1;
+                        }
                     }
+                    GUILayout.EndVertical();
                 }
                 EditorGUI.indentLevel -= 1;
             }
