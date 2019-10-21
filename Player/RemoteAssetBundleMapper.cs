@@ -54,10 +54,12 @@ namespace RemoteAssetBundleTools
         public delegate void HandleProgressUpdate(string message, float progress);
         public delegate void HandleAllAssetBundlesLoaded();
         public delegate void HandleAssetBundleLoadingError(string message);
+        public delegate void HandleManifestLoadingError(string message);
         public event HandleManifestsRetrieved OnManifestsRetrieved;
         public event HandleAssetBundlesLoaded OnAssetBundlesLoaded;
         public event HandleAllAssetBundlesLoaded OnAllAssetBundlesLoaded;
         public event HandleAssetBundleLoadingError OnAssetBundleLoadingError;
+        public event HandleManifestLoadingError OnManifestLoadingError;
         public event HandleProgressUpdate OnProgressUpdate;
         private CoroutineQueue taskQueue;
         private uint totalAssetBundles;
@@ -73,6 +75,15 @@ namespace RemoteAssetBundleTools
             if (loadAssetBundlesOnStart)
             {
                 GetUpdatedContent();
+            }
+        }
+
+        public void ToggleProgressBar(bool val)
+        {
+            if (progressBar)
+            {
+                progressBar.progressObj.SetActive(val);
+                progressBar.messageObj.SetActive(val);
             }
         }
 
@@ -101,7 +112,12 @@ namespace RemoteAssetBundleTools
             }
             if (t.IsFaulted)
             {
-                throw new Exception("Unable to Check for New Content. Is Wi-Fi or Data Turned On?");
+                string message = "Unable to Check for New Content. Is Wi-Fi or Data Turned On?";
+                if (OnManifestLoadingError != null)
+                {
+                    OnManifestLoadingError(message);
+                }
+                throw new Exception(message);
             }
         }
 
@@ -167,6 +183,7 @@ namespace RemoteAssetBundleTools
 
         public IEnumerator LoadAllLocalAssetBundles()
         {
+            UpdateProgressBar(0.0f, "Loading Local Assets");
             foreach (RemoteAssetBundleMap map in remoteAssetBundleMaps)
             {
                 yield return LoadLocalAssetBundles(map);
