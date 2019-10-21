@@ -126,7 +126,6 @@ namespace RemoteAssetBundleTools
 
         public bool AllRemoteBundlesReady()
         {
-            Debug.Log(remoteAssetBundleMaps.Length);
             return remoteAssetBundleMaps.All(mapping => mapping.IsReady());
         }
 
