@@ -33,8 +33,9 @@ namespace RemoteAssetBundleTools
                 {
                     return (Manifest.bundles.Length + localAssetBundles.Length) == Bundles.Count;
                 }
-                catch
+                catch (Exception ex)
                 {
+                    Debug.LogError(ex.Message);
                     return false;
                 }
 
@@ -62,6 +63,7 @@ namespace RemoteAssetBundleTools
         private uint curretAssetBundleCount;
         private float progress;
         private SimpleProgressBar progressBar;
+        private bool newContentAvailable = false;
         public void Start()
         {
             taskQueue = new CoroutineQueue(requestCount, StartCoroutine);
@@ -77,7 +79,6 @@ namespace RemoteAssetBundleTools
 
         public IEnumerator FetchAllManifests()
         {
-
             Task t = FetchAllManifestsAwaitable();
             while (!t.IsCompleted)
             {
@@ -96,31 +97,36 @@ namespace RemoteAssetBundleTools
 
         public IEnumerator FetchAllAssetBundles()
         {
-            foreach (RemoteAssetBundleMap mapping in remoteAssetBundleMaps)
+            if (newContentAvailable)
             {
-                yield return FetchAssetBundles(mapping.assetBundleKey);
-            }
-            if (AllRemoteBundlesReady())
-            {
-                UpdateProgressBar(1.0f, "All New Content Successfully Downloaded");
-                if (OnAllAssetBundlesLoaded != null)
+                foreach (RemoteAssetBundleMap mapping in remoteAssetBundleMaps)
                 {
-                    OnAllAssetBundlesLoaded();
+                    yield return FetchAssetBundles(mapping.assetBundleKey);
+                }
+                if (AllRemoteBundlesReady())
+                {
+                    UpdateProgressBar(1.0f, "All New Content Successfully Downloaded");
+                    if (OnAllAssetBundlesLoaded != null)
+                    {
+                        OnAllAssetBundlesLoaded();
+                    }
+                }
+                else
+                {
+                    string message = "There was an Error Downloading Some of the New Content.";
+                    if (OnAssetBundleLoadingError != null)
+                    {
+                        OnAssetBundleLoadingError(message);
+                    }
+                    throw new Exception(message);
                 }
             }
-            else
-            {
-                string message = "There was an Error Downloading Some of the New Content.";
-                if (OnAssetBundleLoadingError != null)
-                {
-                    OnAssetBundleLoadingError(message);
-                }
-                throw new Exception(message);
-            }
+            UpdateProgressBar(1.0f, "No New Content Available to Download. Your App is up-to-date!");
         }
 
         public bool AllRemoteBundlesReady()
         {
+            Debug.Log(remoteAssetBundleMaps.Length);
             return remoteAssetBundleMaps.All(mapping => mapping.IsReady());
         }
 
@@ -243,6 +249,8 @@ namespace RemoteAssetBundleTools
             {
                 map = remoteAssetBundleMaps[i];
                 map.Manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(remoteAssetBundleEndpoint, map.appName, verified);
+                Debug.Log(map.Manifest.bundles);
+                if (map.Manifest.bundles != null && map.Manifest.bundles.Length > 0) newContentAvailable = true;
                 manifests[i] = map.Manifest;
             }
             if (OnManifestsRetrieved != null)

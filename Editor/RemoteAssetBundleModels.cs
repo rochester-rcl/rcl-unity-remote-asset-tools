@@ -148,7 +148,7 @@
     /// <summary>Manifest of all RemoteAssetBundles living on a server </summary>
     /// <remarks>Uses Fields instead of Properties in order to work with <see cref="JsonUtility" /> </remarks>
     [System.Serializable]
-    public struct RemoteAssetBundleManifest
+    public class RemoteAssetBundleManifest
     {
         public RemoteAssetBundle[] bundles;
 
