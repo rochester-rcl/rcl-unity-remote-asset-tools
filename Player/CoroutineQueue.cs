@@ -58,7 +58,6 @@ namespace RemoteAssetBundleTools
 
         private void RunInternal(CoroutineCallbackWrapper wrapper)
         {
-
             if (numActive < maxActive)
             {
                 IEnumerator runner = CoroutineRunner(wrapper);
@@ -110,8 +109,6 @@ namespace RemoteAssetBundleTools
                 }
                 yield return null;
             }
-            total = 0;
-            completedCount = 0;
         }
 
         public void Chain(params IEnumerator[] coroutines)
@@ -144,6 +141,7 @@ namespace RemoteAssetBundleTools
                         OnCoroutineError(ex.Message);
                     }
                     wrapper.ExecCallback(false);
+                    numActive--;
                     yield break;
                 }
                 yield return current;
