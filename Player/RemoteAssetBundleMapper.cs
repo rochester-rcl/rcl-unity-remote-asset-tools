@@ -18,27 +18,82 @@ namespace RemoteAssetBundleTools
             public string displayName;
             public string[] localAssetBundles;
             public RemoteAssetBundleManifest Manifest { get; set; }
-            public List<AssetBundle> Bundles { get; set; }
-            public void AddLoadedBundle(AssetBundle bundle)
+            public List<AssetBundle> RemoteBundles { get; set; }
+            public List<AssetBundle> LocalBundles { get; set; }
+
+            public List<AssetBundle> AllBundles()
             {
-                if (Bundles == null)
-                {
-                    Bundles = new List<AssetBundle>();
-                }
-                Bundles.Add(bundle);
+                if (RemoteBundles == null && LocalBundles == null) return null;
+                if (RemoteBundles != null && LocalBundles == null) return RemoteBundles;
+                if (LocalBundles != null && RemoteBundles == null) return LocalBundles;
+                return LocalBundles.Concat(RemoteBundles).ToList();
             }
-            public bool IsReady()
+
+            public void UnloadLocalBundles()
+            {
+                if (LocalBundles != null)
+                {
+                    foreach (AssetBundle b in LocalBundles)
+                    {
+                        b.Unload(false);
+                    }
+                    LocalBundles = null;
+                }
+            }
+
+            public void UnloadRemoteBundles()
+            {
+                if (RemoteBundles != null)
+                {
+                    foreach (AssetBundle b in RemoteBundles)
+                    {
+                        b.Unload(false);
+                    }
+                }
+                RemoteBundles = null;
+            }
+            public void UnloadAllBundles()
+            {
+                UnloadLocalBundles();
+                UnloadRemoteBundles();
+            }
+            public void AddLoadedRemoteBundle(AssetBundle bundle)
+            {
+                if (RemoteBundles == null)
+                {
+                    RemoteBundles = new List<AssetBundle>();
+                }
+                RemoteBundles.Add(bundle);
+            }
+            public void AddLoadedLocalBundle(AssetBundle bundle)
+            {
+                if (LocalBundles == null)
+                {
+                    LocalBundles = new List<AssetBundle>();
+                }
+                LocalBundles.Add(bundle);
+            }
+            public bool AreLocalBundlesReady()
+            {
+                return localAssetBundles.Length == LocalBundles.Count;
+            }
+
+            public bool AreRemoteBundlesReady()
             {
                 try
                 {
-                    return (Manifest.bundles.Length + localAssetBundles.Length) == Bundles.Count;
+                    if (Manifest.bundles.Length == 0) return true;
+                    return Manifest.bundles.Length == RemoteBundles.Count;
                 }
                 catch (Exception ex)
                 {
                     Debug.LogError(ex.Message);
                     return false;
                 }
-
+            }
+            public bool IsReady()
+            {
+                return AreLocalBundlesReady() && AreRemoteBundlesReady();
             }
         }
 
@@ -52,12 +107,16 @@ namespace RemoteAssetBundleTools
         public delegate void HandleManifestsRetrieved(RemoteAssetBundleManifest[] manifests);
         public delegate void HandleAssetBundlesLoaded(string key);
         public delegate void HandleProgressUpdate(string message, float progress);
-        public delegate void HandleAllAssetBundlesLoaded();
+        public delegate void HandleAllRemoteAssetBundlesLoaded();
+        public delegate void HandleAllLocalAssetBundlesLoaded();
+        public delegate void HandleGetUpdatedContentSucces();
         public delegate void HandleAssetBundleLoadingError(string message);
         public delegate void HandleManifestLoadingError(string message);
         public event HandleManifestsRetrieved OnManifestsRetrieved;
         public event HandleAssetBundlesLoaded OnAssetBundlesLoaded;
-        public event HandleAllAssetBundlesLoaded OnAllAssetBundlesLoaded;
+        public event HandleAllRemoteAssetBundlesLoaded OnAllRemoteAssetBundlesLoaded;
+        public event HandleAllLocalAssetBundlesLoaded OnAllLocalAssetBundlesLoaded;
+        public event HandleGetUpdatedContentSucces OnGetUpdatedContentSuccess;
         public event HandleAssetBundleLoadingError OnAssetBundleLoadingError;
         public event HandleManifestLoadingError OnManifestLoadingError;
         public event HandleProgressUpdate OnProgressUpdate;
@@ -96,10 +155,7 @@ namespace RemoteAssetBundleTools
         {
             foreach (RemoteAssetBundleMap map in remoteAssetBundleMaps)
             {
-                foreach (AssetBundle b in map.Bundles)
-                {
-                    b.Unload(true);
-                }
+                map.UnloadAllBundles();
             }
         }
 
@@ -123,7 +179,28 @@ namespace RemoteAssetBundleTools
 
         public void GetUpdatedContent()
         {
-            taskQueue.Chain(LoadAllLocalAssetBundles(), FetchAllManifests(), FetchAllAssetBundles());
+            taskQueue.Chain(LoadAllLocalAssetBundles(), FetchAllManifests(), FetchAllAssetBundles(), AllContentUpdated());
+        }
+
+        public IEnumerator AllContentUpdated()
+        {
+            if (AllBundlesReady())
+            {
+                yield return null;
+                if (OnGetUpdatedContentSuccess != null)
+                {
+                    OnGetUpdatedContentSuccess();
+                }
+            }
+            else
+            {
+                string message = "There was an Error Downloading Some of the New Content.";
+                if (OnAssetBundleLoadingError != null)
+                {
+                    OnAssetBundleLoadingError(message);
+                }
+                throw new Exception(message);
+            }
         }
 
         public IEnumerator FetchAllAssetBundles()
@@ -136,20 +213,11 @@ namespace RemoteAssetBundleTools
                 }
                 if (AllRemoteBundlesReady())
                 {
-                    UpdateProgressBar(1.0f, "All New Content Successfully Downloaded");
-                    if (OnAllAssetBundlesLoaded != null)
+                    UpdateProgressBar(1.0f, "All New Content Successfully Loaded");
+                    if (OnAllRemoteAssetBundlesLoaded != null)
                     {
-                        OnAllAssetBundlesLoaded();
+                        OnAllRemoteAssetBundlesLoaded();
                     }
-                }
-                else
-                {
-                    string message = "There was an Error Downloading Some of the New Content.";
-                    if (OnAssetBundleLoadingError != null)
-                    {
-                        OnAssetBundleLoadingError(message);
-                    }
-                    throw new Exception(message);
                 }
             }
             else
@@ -157,10 +225,10 @@ namespace RemoteAssetBundleTools
                 UpdateProgressBar(1.0f, "No New Content Available to Download. Your App is up-to-date!");
                 if (AllRemoteBundlesReady())
                 {
-                    UpdateProgressBar(1.0f, "All New Content Successfully Downloaded");
-                    if (OnAllAssetBundlesLoaded != null)
+                    UpdateProgressBar(1.0f, "All Local Content Successfully Loaded");
+                    if (OnAllRemoteAssetBundlesLoaded != null)
                     {
-                        OnAllAssetBundlesLoaded();
+                        OnAllRemoteAssetBundlesLoaded();
                     }
                 }
                 else
@@ -178,6 +246,16 @@ namespace RemoteAssetBundleTools
 
         public bool AllRemoteBundlesReady()
         {
+            return remoteAssetBundleMaps.All(mapping => mapping.AreRemoteBundlesReady());
+        }
+
+        public bool AllLocalBundlesReady()
+        {
+            return remoteAssetBundleMaps.All(mapping => mapping.AreLocalBundlesReady());
+        }
+
+        public bool AllBundlesReady()
+        {
             return remoteAssetBundleMaps.All(mapping => mapping.IsReady());
         }
 
@@ -187,6 +265,13 @@ namespace RemoteAssetBundleTools
             foreach (RemoteAssetBundleMap map in remoteAssetBundleMaps)
             {
                 yield return LoadLocalAssetBundles(map);
+            }
+            if (AllLocalBundlesReady())
+            {
+                if (OnAllLocalAssetBundlesLoaded != null)
+                {
+                    OnAllLocalAssetBundlesLoaded();
+                }
             }
         }
 
@@ -208,7 +293,7 @@ namespace RemoteAssetBundleTools
             AssetBundle b = bundleRequest.assetBundle;
             if (b)
             {
-                assetMap.AddLoadedBundle(b);
+                assetMap.AddLoadedLocalBundle(b);
             }
             else
             {
@@ -286,7 +371,7 @@ namespace RemoteAssetBundleTools
                 }
                 else
                 {
-                    if (b) assetMap.AddLoadedBundle(b);
+                    if (b) assetMap.AddLoadedRemoteBundle(b);
                 }
             };
             return RemoteAssetBundleUtils.DownloadAssetBundleAsync(remoteAssetBundleEndpoint, bundle, callback);
@@ -301,7 +386,6 @@ namespace RemoteAssetBundleTools
             {
                 map = remoteAssetBundleMaps[i];
                 map.Manifest = await RemoteAssetBundleUtils.GetAssetBundleManifest(remoteAssetBundleEndpoint, map.appName, verified);
-                Debug.Log(map.Manifest.bundles);
                 if (map.Manifest.bundles != null && map.Manifest.bundles.Length > 0) newContentAvailable = true;
                 manifests[i] = map.Manifest;
             }
