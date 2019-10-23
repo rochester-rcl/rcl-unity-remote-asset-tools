@@ -35,6 +35,7 @@ namespace RemoteAssetBundleTools
         }
         public GameObject progressObj;
         public GameObject messageObj;
+        public GameObject progressContainer;
         [Tooltip("Animates progress to show the bar is still active.")]
         public bool active = false;
         private GameObject activeObj;
@@ -89,6 +90,19 @@ namespace RemoteAssetBundleTools
                     activeImage.fillAmount = 0.0f;
                     activeImage.color = activeColor;
                 }
+            }
+        }
+
+        public void Toggle(bool val)
+        {
+            if (progressContainer)
+            {
+                progressContainer.SetActive(val);
+            }
+            else
+            {
+                progressObj.SetActive(val);
+                messageObj.SetActive(val);
             }
         }
 

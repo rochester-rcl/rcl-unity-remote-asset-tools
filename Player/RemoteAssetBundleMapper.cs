@@ -141,8 +141,7 @@ namespace RemoteAssetBundleTools
         {
             if (progressBar)
             {
-                progressBar.progressObj.SetActive(val);
-                progressBar.messageObj.SetActive(val);
+                progressBar.Toggle(val);
             }
         }
 
@@ -320,10 +319,10 @@ namespace RemoteAssetBundleTools
                     bundle = assetMap.Manifest.bundles[i];
                     tasks[i] = FetchAssetBundle(bundle, assetMap);
                 }
-                UpdateProgressBar(0.0f, null);
+                UpdateProgressBar(0.0f, "Preparing To Download Assets");
                 CoroutineQueue.HandleProgressUpdate func = PrepareProgress(
-                    string.Format("Downloading {0} Assets for App {1}",
-                    tasks.Length,
+                    string.Format("Downloading {0} Assets for {1}",
+                    tasks.Length.ToString(),
                     assetMap.displayName
                 ));
                 taskQueue.OnProgressUpdate += func;
@@ -339,6 +338,7 @@ namespace RemoteAssetBundleTools
 
         private CoroutineQueue.HandleProgressUpdate PrepareProgress(string message)
         {
+            UpdateProgressBar(0.0f, message);
             return (float progress) =>
             {
                 if (OnProgressUpdate != null)
